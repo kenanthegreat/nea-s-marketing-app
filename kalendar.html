@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akcije & Promocije | Naši Restorani</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f0f2f5;
+  --card: #ffffff;
+  --text: #1a1a2e;
+  --text2: #64748b;
+  --border: #e2e8f0;
+  --today-bg: #3b82f6;
+  --header-bg: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  --akcija: #ef4444;
+  --promocija: #22c55e;
+  --happy_hour: #3b82f6;
+  --event: #f97316;
+  --novo_meni: #a855f7;
+  --praznik: #eab308;
+  --rodjendan: #ec4899;
+  --posebna: #6366f1;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+/* HEADER */
+.header {
+  background:var(--header-bg); color:#fff; padding:20px 24px;
+  text-align:center; position:sticky; top:0; z-index:100;
+  box-shadow:0 4px 20px rgba(0,0,0,0.15);
+}
+.header h1 { font-size:1.5rem; font-weight:800; letter-spacing:-0.5px; }
+.header p { font-size:0.85rem; opacity:0.7; margin-top:4px; }
+
+/* FILTERS */
+.filters {
+  display:flex; gap:8px; padding:16px 24px; overflow-x:auto;
+  background:#fff; border-bottom:1px solid var(--border);
+  -webkit-overflow-scrolling:touch;
+}
+.filters::-webkit-scrollbar { display:none; }
+.filter-btn {
+  padding:8px 16px; border-radius:20px; border:2px solid var(--border);
+  background:#fff; font-size:0.8rem; font-weight:600; cursor:pointer;
+  white-space:nowrap; transition:all 0.2s; font-family:inherit;
+}
+.filter-btn:hover { border-color:var(--today-bg); color:var(--today-bg); }
+.filter-btn.active {
+  background:var(--today-bg); color:#fff; border-color:var(--today-bg);
+}
+
+/* NAVIGATION */
+.nav-bar {
+  display:flex; justify-content:center; align-items:center;
+  gap:16px; padding:16px 24px;
+}
+.nav-btn {
+  width:40px; height:40px; border-radius:50%; border:2px solid var(--border);
+  background:#fff; cursor:pointer; font-size:1.1rem; display:flex;
+  align-items:center; justify-content:center; transition:all 0.2s;
+}
+.nav-btn:hover { background:var(--today-bg); color:#fff; border-color:var(--today-bg); }
+.nav-today {
+  padding:8px 20px; border-radius:20px; border:2px solid var(--today-bg);
+  background:#fff; color:var(--today-bg); font-weight:600; cursor:pointer;
+  font-size:0.85rem; font-family:inherit; transition:all 0.2s;
+}
+.nav-today:hover { background:var(--today-bg); color:#fff; }
+
+/* CALENDAR CONTAINER */
+.calendars {
+  display:grid; grid-template-columns:repeat(3,1fr);
+  gap:16px; padding:0 24px 24px; max-width:1400px; margin:0 auto;
+}
+@media(max-width:1024px) { .calendars { grid-template-columns:1fr; max-width:500px; } }
+
+/* MONTH CARD */
+.month-card {
+  background:var(--card); border-radius:16px;
+  box-shadow:0 1px 3px rgba(0,0,0,0.08); overflow:hidden;
+  transition:transform 0.2s, box-shadow 0.2s;
+}
+.month-card:hover { transform:translateY(-2px); box-shadow:0 8px 25px rgba(0,0,0,0.1); }
+.month-card.center { box-shadow:0 4px 15px rgba(59,130,246,0.15); border:2px solid rgba(59,130,246,0.2); }
+.month-header {
+  padding:16px 20px; font-size:1.05rem; font-weight:700;
+  text-align:center; border-bottom:1px solid var(--border);
+}
+.month-card.center .month-header {
+  background:linear-gradient(135deg,#3b82f6,#6366f1); color:#fff;
+}
+.day-names {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  padding:8px 8px 4px; gap:2px;
+}
+.day-name {
+  text-align:center; font-size:0.7rem; font-weight:700;
+  color:var(--text2); text-transform:uppercase; padding:4px;
+}
+.days-grid {
+  display:grid; grid-template-columns:repeat(7,1fr);
+  padding:0 8px 12px; gap:2px;
+}
+.day-cell {
+  min-height:70px; padding:4px; border-radius:8px;
+  cursor:default; transition:background 0.15s; position:relative;
+}
+@media(max-width:1024px) { .day-cell { min-height:80px; } }
+.day-cell:hover { background:#f8fafc; }
+.day-cell.empty { opacity:0.3; }
+.day-cell.other-month .day-number { color:#cbd5e1; }
+.day-number {
+  font-size:0.8rem; font-weight:600; display:inline-flex;
+  width:26px; height:26px; align-items:center; justify-content:center;
+  border-radius:50%; margin-bottom:2px;
+}
+.day-cell.today .day-number {
+  background:var(--today-bg); color:#fff;
+  animation:pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow:0 0 0 0 rgba(59,130,246,0.4); }
+  50% { box-shadow:0 0 0 6px rgba(59,130,246,0); }
+}
+
+/* EVENT PILLS */
+.event-pill {
+  font-size:0.65rem; font-weight:600; color:#fff;
+  padding:2px 6px; border-radius:4px; margin-bottom:2px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
+  line-height:1.4;
+}
+.event-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:10; position:relative; }
+.more-events {
+  font-size:0.65rem; color:var(--today-bg); font-weight:600;
+  cursor:pointer; padding:2px 6px;
+}
+.more-events:hover { text-decoration:underline; }
+
+/* LEGEND */
+.legend {
+  display:flex; flex-wrap:wrap; justify-content:center;
+  gap:12px; padding:20px 24px; max-width:1400px; margin:0 auto;
+}
+.legend-item {
+  display:flex; align-items:center; gap:6px;
+  font-size:0.78rem; font-weight:500; color:var(--text2);
+}
+.legend-dot {
+  width:12px; height:12px; border-radius:4px; flex-shrink:0;
+}
+
+/* MODAL */
+.modal-overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,0.5);
+  display:none; align-items:center; justify-content:center;
+  z-index:1000; padding:20px; backdrop-filter:blur(4px);
+}
+.modal-overlay.active { display:flex; }
+.modal {
+  background:#fff; border-radius:20px; max-width:480px; width:100%;
+  overflow:hidden; animation:modalIn 0.3s ease;
+  box-shadow:0 25px 60px rgba(0,0,0,0.3);
+}
+@keyframes modalIn { from { opacity:0; transform:scale(0.9) translateY(20px); } }
+.modal-banner {
+  padding:24px; color:#fff; position:relative;
+}
+.modal-banner .cat-badge {
+  display:inline-block; background:rgba(255,255,255,0.25);
+  padding:4px 12px; border-radius:12px; font-size:0.75rem;
+  font-weight:600; margin-bottom:12px; backdrop-filter:blur(4px);
+}
+.modal-banner h2 { font-size:1.4rem; font-weight:800; line-height:1.3; }
+.modal-body { padding:24px; }
+.modal-info {
+  display:flex; align-items:center; gap:10px; padding:10px 0;
+  border-bottom:1px solid var(--border); font-size:0.9rem;
+}
+.modal-info:last-child { border-bottom:none; }
+.modal-info .icon { font-size:1.2rem; width:30px; text-align:center; }
+.modal-info .label { color:var(--text2); font-size:0.8rem; }
+.modal-info .value { font-weight:600; }
+.modal-desc {
+  margin-top:16px; padding:16px; background:#f8fafc;
+  border-radius:12px; font-size:0.9rem; line-height:1.6; color:#475569;
+}
+.modal-close {
+  position:absolute; top:16px; right:16px; width:36px; height:36px;
+  border-radius:50%; border:none; background:rgba(255,255,255,0.2);
+  color:#fff; font-size:1.2rem; cursor:pointer; display:flex;
+  align-items:center; justify-content:center; transition:all 0.2s;
+}
+.modal-close:hover { background:rgba(255,255,255,0.4); transform:rotate(90deg); }
+
+/* DAY EVENTS MODAL (when clicking +N more) */
+.day-modal { max-height:80vh; overflow-y:auto; }
+.day-modal-title { padding:20px 24px; font-weight:700; font-size:1.1rem; border-bottom:1px solid var(--border); }
+.day-event-item {
+  display:flex; align-items:center; gap:12px; padding:14px 24px;
+  cursor:pointer; transition:background 0.15s; border-bottom:1px solid #f1f5f9;
+}
+.day-event-item:hover { background:#f8fafc; }
+.day-event-dot { width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+.day-event-info h4 { font-size:0.9rem; font-weight:600; }
+.day-event-info p { font-size:0.78rem; color:var(--text2); }
+
+/* FOOTER */
+.footer {
+  text-align:center; padding:20px; font-size:0.75rem; color:var(--text2);
+  border-top:1px solid var(--border); margin-top:20px;
+}
+
+/* NO EVENTS */
+.no-events {
+  text-align:center; padding:60px 24px; color:var(--text2);
+}
+.no-events .icon { font-size:3rem; margin-bottom:12px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>🍽️ Akcije & Promocije</h1>
+  <p>Pregled svih akcija, promocija i evenata naših restorana</p>
+</div>
+
+<div class="filters" id="filters"></div>
+
+<div class="nav-bar">
+  <button class="nav-btn" onclick="navigate(-1)">◀</button>
+  <button class="nav-today" onclick="goToday()">Danas</button>
+  <button class="nav-btn" onclick="navigate(1)">▶</button>
+</div>
+
+<div class="calendars" id="calendars"></div>
+
+<div class="legend" id="legend"></div>
+
+<div class="footer">
+  Kalendar se redovno ažurira • Kliknite na događaj za detalje
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal-overlay" id="eventModal" onclick="closeModal(event)">
+  <div class="modal" id="eventModalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Day Events Modal -->
+<div class="modal-overlay" id="dayModal" onclick="closeModal(event)">
+  <div class="modal day-modal" id="dayModalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<script>
+// ============================================================
+// KONFIGURACIJA — Uredi prema svojim potrebama
+// ============================================================
+const CONFIG = {
+  businessName: 'Naši Restorani',
+  
+  restaurants: {
+    'all':  'Svi restorani',
+    'r1':   'Restoran Centar',
+    'r2':   'Restoran Baščaršija',
+    'r3':   'Restoran Ilidža',
+    'r4':   'Restoran Marijin Dvor',
+    'r5':   'Restoran Vogošća'
+  },
+  
+  categories: {
+    'akcija':     { label:'Akcija',         color:'#ef4444', icon:'🏷️' },
+    'promocija':  { label:'Promocija',      color:'#22c55e', icon:'📢' },
+    'happy_hour': { label:'Happy Hour',     color:'#3b82f6', icon:'🍺' },
+    'event':      { label:'Event',          color:'#f97316', icon:'🎉' },
+    'novo_meni':  { label:'Novo u meniju',  color:'#a855f7', icon:'🆕' },
+    'praznik':    { label:'Praznik',        color:'#eab308', icon:'🎊' },
+    'rodjendan':  { label:'Rođendan',       color:'#ec4899', icon:'🎂' },
+    'posebna':    { label:'Posebna ponuda', color:'#6366f1', icon:'⭐' }
+  }
+};
+
+// ============================================================
+// FIREBASE KONFIGURACIJA (zamijenite sa vašim podacima)
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+
+// ============================================================
+// DATA LAYER — automatski koristi Firebase ili localStorage
+// ============================================================
+const USE_FIREBASE = firebaseConfig.apiKey !== 'YOUR_API_KEY';
+let db = null;
+
+const DataStore = {
+  async getEvents() {
+    if (USE_FIREBASE) {
+      const snap = await db.collection('events').orderBy('startDate').get();
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+    return JSON.parse(localStorage.getItem('cal_events') || '[]');
+  }
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let allEvents = [];
+let filteredEvents = [];
+let activeFilter = 'all';
+let centerDate = new Date();
+
+const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
+                     'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
+const DAY_NAMES = ['Pon','Uto','Sri','Čet','Pet','Sub','Ned'];
+
+// ============================================================
+// DEMO DATA — briše se kad povežete Firebase
+// ============================================================
+function initDemoData() {
+  const existing = localStorage.getItem('cal_events');
+  if (existing) return;
+  
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  
+  const demo = [
+    { id:'d1', title:'Pizza 2+1 GRATIS', restaurant:'all', category:'akcija',
+      startDate:fmt(y,m,3), endDate:fmt(y,m,6),
+      description:'Naruči 2 pizze po izboru i treća je potpuno BESPLATNA! Važi za sve pizze iz menija. Ne propustite!' },
+    { id:'d2', title:'Happy Hour -30%', restaurant:'r1', category:'happy_hour',
+      startDate:fmt(y,m,8), endDate:fmt(y,m,8),
+      description:'Sva pića sa 30% popusta od 16:00 do 19:00. Kokteli, piva, vina — sve po sniženoj cijeni!' },
+    { id:'d3', title:'Novi ljetni meni', restaurant:'r2', category:'novo_meni',
+      startDate:fmt(y,m,10), endDate:fmt(y,m,15),
+      description:'Predstavljamo novi ljetni meni sa svježim salatama, grilovanim specialitetima i osvježavajućim desertima.' },
+    { id:'d4', title:'Live muzika - Jazz Veče', restaurant:'r3', category:'event',
+      startDate:fmt(y,m,14), endDate:fmt(y,m,14),
+      description:'Uživajte uz živu jazz muziku od 20:00. Nastupa Jazz Quartet Sarajevo. Rezervacije na 033/123-456.' },
+    { id:'d5', title:'Dan restorana -50%', restaurant:'r1', category:'rodjendan',
+      startDate:fmt(y,m,20), endDate:fmt(y,m,20),
+      description:'Slavimo 5. rođendan Restorana Centar! Svi glavni obroci sa 50% popusta. Torta za sve goste!' },
+    { id:'d6', title:'Burger Fest', restaurant:'all', category:'promocija',
+      startDate:fmt(y,m,17), endDate:fmt(y,m,22),
+      description:'Sedmica burgera! Svaki dan novi posebni burger po promotivnoj cijeni od 9.90 KM.' },
+    { id:'d7', title:'Dječiji kutak BESPLATNO', restaurant:'r4', category:'posebna',
+      startDate:fmt(y,m,12), endDate:fmt(y,m,13),
+      description:'Vikend za porodice! Besplatan dječiji kutak sa animatorima od 11:00 do 15:00.' },
+    { id:'d8', title:'Ramazanski meni', restaurant:'all', category:'posebna',
+      startDate:fmt(y,m+1,1), endDate:fmt(y,m+1,10),
+      description:'Poseban iftar meni sa 3 slijeda za samo 15 KM. Dostupno u svim restoranima.' },
+    { id:'d9', title:'Wine & Dine večer', restaurant:'r5', category:'event',
+      startDate:fmt(y,m+1,5), endDate:fmt(y,m+1,5),
+      description:'Degustacija vina uz 5-sljedni meni. Cijena: 45 KM/osobi. Broj mjesta ograničen!' },
+    { id:'d10', title:'Ćevapi vikend -20%', restaurant:'r2', category:'akcija',
+      startDate:fmt(y,m,-3), endDate:fmt(y,m,-1),
+      description:'Svi ćevapi sa 20% popusta! Sudžuke, pljeskavice i ćevapi. Važi samo za vikend.' },
+    { id:'d11', title:'Praznik rada', restaurant:'all', category:'praznik',
+      startDate:fmt(y,m,1), endDate:fmt(y,m,1),
+      description:'Sretan Praznik rada! Radno vrijeme: 10:00 - 22:00 u svim restoranima.' },
+  ];
+  localStorage.setItem('cal_events', JSON.stringify(demo));
+}
+
+function fmt(y, m, d) {
+  const date = new Date(y, m, d);
+  return date.toISOString().split('T')[0];
+}
+
+// ============================================================
+// INIT
+// ============================================================
+async function init() {
+  if (USE_FIREBASE) {
+    // Dynamic import
+    await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+    await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+  } else {
+    initDemoData();
+  }
+  
+  allEvents = await DataStore.getEvents();
+  filteredEvents = [...allEvents];
+  
+  renderFilters();
+  renderLegend();
+  renderCalendars();
+  
+  // Auto-refresh every 60 seconds
+  setInterval(async () => {
+    allEvents = await DataStore.getEvents();
+    applyFilter();
+  }, 60000);
+}
+
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src; s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ============================================================
+// FILTERS
+// ============================================================
+function renderFilters() {
+  const container = document.getElementById('filters');
+  container.innerHTML = Object.entries(CONFIG.restaurants).map(([key, name]) =>
+    `<button class="filter-btn ${key === activeFilter ? 'active' : ''}" 
+            onclick="setFilter('${key}')">${key === 'all' ? '🍽️ ' : '📍 '}${name}</button>`
+  ).join('');
+}
+
+function setFilter(restaurant) {
+  activeFilter = restaurant;
+  applyFilter();
+  renderFilters();
+}
+
+function applyFilter() {
+  filteredEvents = activeFilter === 'all' 
+    ? [...allEvents]
+    : allEvents.filter(e => e.restaurant === activeFilter || e.restaurant === 'all');
+  renderCalendars();
+}
+
+// ============================================================
+// LEGEND
+// ============================================================
+function renderLegend() {
+  document.getElementById('legend').innerHTML = Object.entries(CONFIG.categories).map(([key, cat]) =>
+    `<div class="legend-item">
+      <div class="legend-dot" style="background:${cat.color}"></div>
+      ${cat.icon} ${cat.label}
+    </div>`
+  ).join('');
+}
+
+// ============================================================
+// CALENDAR RENDERING
+// ============================================================
+function navigate(dir) {
+  centerDate.setMonth(centerDate.getMonth() + dir);
+  renderCalendars();
+}
+
+function goToday() {
+  centerDate = new Date();
+  renderCalendars();
+}
+
+function renderCalendars() {
+  const container = document.getElementById('calendars');
+  const cy = centerDate.getFullYear();
+  const cm = centerDate.getMonth();
+  
+  const months = [
+    { y: cm === 0 ? cy-1 : cy, m: cm === 0 ? 11 : cm-1, pos: 'left' },
+    { y: cy, m: cm, pos: 'center' },
+    { y: cm === 11 ? cy+1 : cy, m: cm === 11 ? 0 : cm+1, pos: 'right' }
+  ];
+  
+  container.innerHTML = months.map(({ y, m, pos }) => renderMonth(y, m, pos)).join('');
+}
+
+function renderMonth(year, month, position) {
+  const firstDay = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const prevMonthDays = new Date(year, month, 0).getDate();
+  
+  let startDow = firstDay.getDay() - 1;
+  if (startDow < 0) startDow = 6;
+  
+  const today = new Date();
+  const isCenter = position === 'center';
+  
+  let cells = '';
+  
+  // Previous month days
+  for (let i = startDow - 1; i >= 0; i--) {
+    const d = prevMonthDays - i;
+    const pm = month === 0 ? 11 : month - 1;
+    const py = month === 0 ? year - 1 : year;
+    cells += renderDayCell(py, pm, d, false, today);
+  }
+  
+  // Current month days
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells += renderDayCell(year, month, d, true, today);
+  }
+  
+  // Next month padding
+  const totalCells = startDow + daysInMonth;
+  const rows = Math.ceil(totalCells / 7);
+  const remaining = (rows * 7) - totalCells;
+  const nm = month === 11 ? 0 : month + 1;
+  const ny = month === 11 ? year + 1 : year;
+  for (let d = 1; d <= remaining; d++) {
+    cells += renderDayCell(ny, nm, d, false, today);
+  }
+  
+  return `
+    <div class="month-card ${isCenter ? 'center' : ''}">
+      <div class="month-header">${MONTH_NAMES[month]} ${year}</div>
+      <div class="day-names">
+        ${DAY_NAMES.map(d => `<div class="day-name">${d}</div>`).join('')}
+      </div>
+      <div class="days-grid">${cells}</div>
+    </div>`;
+}
+
+function renderDayCell(year, month, day, isCurrentMonth, today) {
+  const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
+  const dayEvents = getEventsForDate(dateStr);
+  
+  const classes = [
+    'day-cell',
+    !isCurrentMonth ? 'other-month' : '',
+    isToday ? 'today' : ''
+  ].filter(Boolean).join(' ');
+  
+  const MAX_VISIBLE = 2;
+  
+  let eventsHtml = dayEvents.slice(0, MAX_VISIBLE).map(ev => {
+    const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+    return `<div class="event-pill" style="background:${cat.color}" 
+                 onclick="showEventDetail('${ev.id}')" title="${ev.title}">
+              ${cat.icon} ${ev.title}
+            </div>`;
+  }).join('');
+  
+  if (dayEvents.length > MAX_VISIBLE) {
+    eventsHtml += `<div class="more-events" onclick="showDayEvents('${dateStr}')">
+                     +${dayEvents.length - MAX_VISIBLE} više
+                   </div>`;
+  }
+  
+  return `<div class="${classes}">
+    <span class="day-number">${isCurrentMonth ? day : day}</span>
+    ${isCurrentMonth ? eventsHtml : ''}
+  </div>`;
+}
+
+function getEventsForDate(dateStr) {
+  return filteredEvents.filter(ev => dateStr >= ev.startDate && dateStr <= ev.endDate);
+}
+
+// ============================================================
+// MODALS
+// ============================================================
+function showEventDetail(eventId) {
+  const ev = allEvents.find(e => e.id === eventId);
+  if (!ev) return;
+  
+  const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+  const restName = ev.restaurant === 'all' ? 'Svi restorani' : (CONFIG.restaurants[ev.restaurant] || ev.restaurant);
+  
+  const startF = formatDate(ev.startDate);
+  const endF = formatDate(ev.endDate);
+  const dateDisplay = ev.startDate === ev.endDate ? startF : `${startF} — ${endF}`;
+  
+  document.getElementById('eventModalContent').innerHTML = `
+    <div class="modal-banner" style="background:${cat.color}">
+      <button class="modal-close" onclick="closeAllModals()">✕</button>
+      <div class="cat-badge">${cat.icon} ${cat.label}</div>
+      <h2>${ev.title}</h2>
+    </div>
+    <div class="modal-body">
+      <div class="modal-info">
+        <span class="icon">📍</span>
+        <div><div class="label">Restoran</div><div class="value">${restName}</div></div>
+      </div>
+      <div class="modal-info">
+        <span class="icon">📅</span>
+        <div><div class="label">Datum</div><div class="value">${dateDisplay}</div></div>
+      </div>
+      ${ev.description ? `<div class="modal-desc">${ev.description}</div>` : ''}
+    </div>`;
+  
+  document.getElementById('eventModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function showDayEvents(dateStr) {
+  const dayEvents = getEventsForDate(dateStr);
+  const d = formatDate(dateStr);
+  
+  document.getElementById('dayModalContent').innerHTML = `
+    <div class="day-modal-title">📅 ${d}</div>
+    ${dayEvents.map(ev => {
+      const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+      return `<div class="day-event-item" onclick="closeAllModals();showEventDetail('${ev.id}')">
+        <div class="day-event-dot" style="background:${cat.color}"></div>
+        <div class="day-event-info">
+          <h4>${cat.icon} ${ev.title}</h4>
+          <p>${CONFIG.restaurants[ev.restaurant] || 'Svi restorani'}</p>
+        </div>
+      </div>`;
+    }).join('')}`;
+  
+  document.getElementById('dayModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal(e) {
+  if (e.target.classList.contains('modal-overlay')) closeAllModals();
+}
+function closeAllModals() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+  document.body.style.overflow = '';
+}
+
+function formatDate(dateStr) {
+  const [y, m, d] = dateStr.split('-');
+  return `${parseInt(d)}. ${MONTH_NAMES[parseInt(m)-1]} ${y}`;
+}
+
+// Keyboard close
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+
+// Start
+init();
+</script>
+</body>
+</html>

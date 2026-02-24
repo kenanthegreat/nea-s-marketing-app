@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="hr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Kalendar Promocija</title>
+  <style>
+    :root{
+      --bg:#f5f7fb;--card:#fff;--text:#1f2937;--muted:#6b7280;--line:#e5e7eb;
+      --blue:#2563eb;--green:#16a34a;--red:#dc2626;--orange:#ea580c;
+    }
+    *{box-sizing:border-box} body{margin:0;font-family:system-ui,Segoe UI,Arial,sans-serif;background:var(--bg);color:var(--text)}
+    .login{min-height:100vh;display:grid;place-items:center;padding:16px}
+    .box,.card{background:var(--card);border:1px solid var(--line);border-radius:14px}
+    .box{width:min(420px,100%);padding:20px}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    input,select,textarea,button{font:inherit}
+    input,select,textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px}
+    button{padding:10px 14px;border:0;border-radius:10px;cursor:pointer}
+    .btn{background:var(--blue);color:#fff}.btn.red{background:var(--red)}.btn.gray{background:#111827;color:#fff}
+    .app{display:none;max-width:1100px;margin:0 auto;padding:16px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+    .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+    .tab{background:#fff;border:1px solid var(--line);color:var(--text)}
+    .tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+    .view{display:none}.view.active{display:block}
+    .card{padding:14px}
+    table{width:100%;border-collapse:collapse}
+    th,td{border-bottom:1px solid var(--line);padding:8px;text-align:left;font-size:14px}
+    th{font-size:12px;text-transform:uppercase;color:var(--muted)}
+    .muted{color:var(--muted)} .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+    .stat{padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+    .n{font-size:26px;font-weight:700}
+    .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media (max-width:700px){.grid2{grid-template-columns:1fr}}
+    .modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;padding:14px}
+    .modal.active{display:flex}.modal .card{width:min(640px,100%);max-height:90vh;overflow:auto}
+  </style>
+</head>
+<body>
+  <div id="login" class="login">
+    <div class="box">
+      <h2>Admin Panel</h2>
+      <p class="muted">Kalendar Akcija i Promocija</p>
+      <input id="pass" type="password" placeholder="Lozinka (default: admin123)" onkeypress="if(event.key==='Enter')doLogin()">
+      <div style="height:10px"></div>
+      <button class="btn" onclick="doLogin()">Prijavi se</button>
+      <p id="err" style="display:none;color:var(--red)">Pogresna lozinka</p>
+    </div>
+  </div>
+
+  <div id="app" class="app">
+    <div class="top">
+      <h2>Kalendar Admin</h2>
+      <div class="row">
+        <span id="today" class="muted"></span>
+        <button class="btn gray" onclick="logout()">Odjava</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" onclick="switchView('dashboard',this)">Dashboard</button>
+      <button class="tab" onclick="switchView('events',this)">Dogadaji</button>
+      <button class="tab" onclick="switchView('reminders',this)">Podsjetnici</button>
+      <button class="tab" onclick="switchView('settings',this)">Postavke</button>
+    </div>
+
+    <section id="view-dashboard" class="view active">
+      <div class="stats" id="stats"></div>
+      <div style="height:12px"></div>
+      <div class="card">
+        <h3>Nadolazeci dogadaji (7 dana)</h3>
+        <table><thead><tr><th>Naziv</th><th>Kategorija</th><th>Restoran</th><th>Datum</th></tr></thead><tbody id="upcoming"></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-events" class="view">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3>Svi dogadaji</h3>
+          <button class="btn" onclick="openEvent()">+ Novi</button>
+        </div>
+        <table>
+          <thead><tr><th>Naziv</th><th>Kategorija</th><th>Restoran</th><th>Od</th><th>Do</th><th>Akcije</th></tr></thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="view-reminders" class="view">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <h3>Podsjetnici</h3>
+          <button class="btn" onclick="openReminder()">+ Novi</button>
+        </div>
+        <table><thead><tr><th>Naziv</th><th>Datum</th><th>Dana prije</th><th>Ponavljanje</th><th>Akcije</th></tr></thead><tbody id="remBody"></tbody></table>
+      </div>
+    </section>
+
+    <section id="view-settings" class="view">
+      <div class="card">
+        <h3>Postavke</h3>
+        <div class="grid2">
+          <div><label>Novi admin password</label><input id="setPass" type="password" placeholder="npr. mojaSigurnaLozinka"></div>
+          <div><label>Naziv biznisa</label><input id="setBiz" value="Nasi Restorani"></div>
+        </div>
+        <div style="height:10px"></div>
+        <button class="btn" onclick="saveSettings()">Spremi</button>
+      </div>
+    </section>
+  </div>
+
+  <div id="eventModal" class="modal">
+    <div class="card">
+      <h3 id="eventTitleH">Novi dogadaj</h3>
+      <input type="hidden" id="eid">
+      <label>Naziv*</label><input id="etitle">
+      <div class="grid2">
+        <div><label>Restoran</label><select id="erest"></select></div>
+        <div><label>Kategorija</label><select id="ecat"></select></div>
+      </div>
+      <div class="grid2">
+        <div><label>Od*</label><input type="date" id="estart"></div>
+        <div><label>Do*</label><input type="date" id="eend"></div>
+      </div>
+      <label>Opis</label><textarea id="edesc"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:10px">
+        <button onclick="closeEvent()">Otkazi</button>
+        <button class="btn" onclick="saveEvent()">Spremi</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="remModal" class="modal">
+    <div class="card">
+      <h3>Novi podsjetnik</h3>
+      <label>Naziv*</label><input id="rtitle">
+      <div class="grid2">
+        <div><label>Datum*</label><input type="date" id="rdate"></div>
+        <div><label>Dana prije</label><select id="rdays"><option>0</option><option>1</option><option>3</option><option selected>7</option><option>14</option><option>30</option></select></div>
+      </div>
+      <label>Ponavlja se</label><select id="rrec"><option value="yes">Da</option><option value="no">Ne</option></select>
+      <label>Biljeska</label><textarea id="rnote"></textarea>
+      <div class="row" style="justify-content:flex-end;margin-top:10px">
+        <button onclick="closeReminder()">Otkazi</button>
+        <button class="btn" onclick="saveReminder()">Spremi</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+const DEFAULT_PASSWORD = "admin123";
+const CONFIG = {
+  restaurants: { all:"Svi restorani", r1:"Restoran Centar", r2:"Restoran Bascarsija", r3:"Restoran Ilidza", r4:"Restoran Marijin Dvor", r5:"Restoran Vogosca" },
+  categories: { akcija:"Akcija", promocija:"Promocija", happy_hour:"Happy Hour", event:"Event", novo_meni:"Novo u meniju", praznik:"Praznik", rodjendan:"Rodendan", posebna:"Posebna ponuda" }
+};
+const $ = (id)=>document.getElementById(id);
+const getEvents = ()=>JSON.parse(localStorage.getItem("cal_events")||"[]");
+const setEvents = (v)=>localStorage.setItem("cal_events", JSON.stringify(v));
+const getRem = ()=>JSON.parse(localStorage.getItem("cal_reminders")||"[]");
+const setRem = (v)=>localStorage.setItem("cal_reminders", JSON.stringify(v));
+const dateStr = (d)=>d.toISOString().split("T")[0];
+const fmt = (s)=>{ const [y,m,d]=s.split("-"); return `${parseInt(d)}.${parseInt(m)}.${y}`; };
+
+function doLogin(){
+  const pass = $("pass").value;
+  const saved = localStorage.getItem("admin_pass") || DEFAULT_PASSWORD;
+  if(pass===saved){
+    sessionStorage.setItem("logged_in","true");
+    $("login").style.display="none"; $("app").style.display="block"; init();
+  }else{
+    $("err").style.display="block"; $("pass").value="";
+  }
+}
+function logout(){ sessionStorage.removeItem("logged_in"); location.reload(); }
+if(sessionStorage.getItem("logged_in")==="true"){ $("login").style.display="none"; $("app").style.display="block"; setTimeout(init,10); }
+
+function init(){
+  $("today").textContent = new Date().toLocaleDateString("hr-HR");
+  if(!localStorage.getItem("cal_reminders")){
+    setRem([{id:"r1",title:"Praznik rada",date:"2026-05-01",daysBefore:7,recurring:"yes",note:"Provjeriti plan"}]);
+  }
+  $("erest").innerHTML = Object.entries(CONFIG.restaurants).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+  $("ecat").innerHTML = Object.entries(CONFIG.categories).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
+  refresh();
+}
+
+function switchView(view,btn){
+  document.querySelectorAll(".view").forEach(v=>v.classList.remove("active"));
+  $("view-"+view).classList.add("active");
+  document.querySelectorAll(".tab").forEach(v=>v.classList.remove("active"));
+  btn.classList.add("active");
+  refresh();
+}
+
+function refresh(){ renderDash(); renderEvents(); renderReminders(); }
+function renderDash(){
+  const events=getEvents(); const rem=getRem(); const t=new Date(); t.setHours(0,0,0,0);
+  const ts=dateStr(t); const w=new Date(t); w.setDate(w.getDate()+7); const ws=dateStr(w);
+  const active=events.filter(e=>e.startDate<=ts&&e.endDate>=ts).length;
+  const up=events.filter(e=>e.startDate>ts&&e.startDate<=ws).length;
+  const m=events.filter(e=>{const d=new Date(e.startDate);return d.getMonth()===t.getMonth()&&d.getFullYear()===t.getFullYear();}).length;
+  $("stats").innerHTML=`<div class="stat"><div class="n">${events.length}</div><div class="muted">Ukupno</div></div>
+    <div class="stat"><div class="n" style="color:var(--green)">${active}</div><div class="muted">Aktivno danas</div></div>
+    <div class="stat"><div class="n" style="color:var(--orange)">${up}</div><div class="muted">Nadolazeci 7 dana</div></div>
+    <div class="stat"><div class="n" style="color:var(--blue)">${m}</div><div class="muted">Ovaj mjesec</div></div>`;
+  const upEvents=events.filter(e=>e.startDate>=ts&&e.startDate<=ws).sort((a,b)=>a.startDate.localeCompare(b.startDate));
+  $("upcoming").innerHTML = upEvents.length ? upEvents.map(e=>`<tr><td>${e.title}</td><td>${CONFIG.categories[e.category]||e.category}</td><td>${CONFIG.restaurants[e.restaurant]||e.restaurant}</td><td>${fmt(e.startDate)}</td></tr>`).join("")
+    : `<tr><td colspan="4" class="muted">Nema nadolazecih dogadaja</td></tr>`;
+}
+
+function renderEvents(){
+  const events = getEvents().sort((a,b)=>b.startDate.localeCompare(a.startDate));
+  $("eventsBody").innerHTML = events.length ? events.map(e=>`<tr>
+    <td>${e.title}</td><td>${CONFIG.categories[e.category]||e.category}</td><td>${CONFIG.restaurants[e.restaurant]||e.restaurant}</td>
+    <td>${fmt(e.startDate)}</td><td>${fmt(e.endDate)}</td>
+    <td><button onclick="editEvent('${e.id}')">Uredi</button> <button class="btn red" onclick="delEvent('${e.id}')">Brisi</button></td>
+  </tr>`).join("") : `<tr><td colspan="6" class="muted">Nema dogadaja</td></tr>`;
+}
+
+function openEvent(e=null){
+  $("eventTitleH").textContent=e?"Uredi dogadaj":"Novi dogadaj";
+  $("eid").value=e?.id||""; $("etitle").value=e?.title||""; $("erest").value=e?.restaurant||"all";
+  $("ecat").value=e?.category||"akcija"; $("estart").value=e?.startDate||""; $("eend").value=e?.endDate||""; $("edesc").value=e?.description||"";
+  $("eventModal").classList.add("active");
+}
+function closeEvent(){ $("eventModal").classList.remove("active"); }
+function saveEvent(){
+  const title=$("etitle").value.trim(), start=$("estart").value, end=$("eend").value;
+  if(!title||!start||!end){ alert("Naziv, od i do su obavezni."); return; }
+  if(end<start){ alert("Kraj ne moze prije pocetka."); return; }
+  const events=getEvents(); const id=$("eid").value || `evt_${Date.now()}`;
+  const data={id,title,restaurant:$("erest").value,category:$("ecat").value,startDate:start,endDate:end,description:$("edesc").value.trim(),createdAt:new Date().toISOString()};
+  const i=events.findIndex(x=>x.id===id); if(i>=0) events[i]=data; else events.push(data);
+  setEvents(events); closeEvent(); refresh();
+}
+function editEvent(id){ const e=getEvents().find(x=>x.id===id); if(e) openEvent(e); }
+function delEvent(id){ if(!confirm("Obrisati dogadaj?")) return; setEvents(getEvents().filter(x=>x.id!==id)); refresh(); }
+
+function renderReminders(){
+  const rem=getRem().sort((a,b)=>a.date.localeCompare(b.date));
+  $("remBody").innerHTML = rem.length ? rem.map(r=>`<tr><td>${r.title}</td><td>${fmt(r.date)}</td><td>${r.daysBefore}</td><td>${r.recurring==="yes"?"Da":"Ne"}</td><td><button class="btn red" onclick="delRem('${r.id}')">Brisi</button></td></tr>`).join("")
+    : `<tr><td colspan="5" class="muted">Nema podsjetnika</td></tr>`;
+}
+function openReminder(){ $("rtitle").value=""; $("rdate").value=""; $("rdays").value="7"; $("rrec").value="yes"; $("rnote").value=""; $("remModal").classList.add("active"); }
+function closeReminder(){ $("remModal").classList.remove("active"); }
+function saveReminder(){
+  const title=$("rtitle").value.trim(), date=$("rdate").value;
+  if(!title||!date){ alert("Naziv i datum su obavezni."); return; }
+  const rem=getRem(); rem.push({id:`rem_${Date.now()}`,title,date,daysBefore:$("rdays").value,recurring:$("rrec").value,note:$("rnote").value.trim()});
+  setRem(rem); closeReminder(); refresh();
+}
+function delRem(id){ if(!confirm("Obrisati podsjetnik?")) return; setRem(getRem().filter(x=>x.id!==id)); refresh(); }
+
+function saveSettings(){
+  const p=$("setPass").value.trim();
+  if(p) localStorage.setItem("admin_pass", p);
+  localStorage.setItem("biz_name", $("setBiz").value.trim());
+  alert("Postavke spremljene.");
+}
+document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ closeEvent(); closeReminder(); } });
+</script>
+</body>
+</html>
