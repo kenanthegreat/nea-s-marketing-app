@@ -148,19 +148,79 @@
     </div>
   </div>
 
+<script src="app-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 const DEFAULT_PASSWORD = "admin123";
 const CONFIG = {
   restaurants: { all:"Svi restorani", r1:"Restoran Centar", r2:"Restoran Bascarsija", r3:"Restoran Ilidza", r4:"Restoran Marijin Dvor", r5:"Restoran Vogosca" },
   categories: { akcija:"Akcija", promocija:"Promocija", happy_hour:"Happy Hour", event:"Event", novo_meni:"Novo u meniju", praznik:"Praznik", rodjendan:"Rodendan", posebna:"Posebna ponuda" }
 };
+const FIREBASE_CONFIG = (window.APP_CONFIG && window.APP_CONFIG.firebase) ? window.APP_CONFIG.firebase : { apiKey: "YOUR_API_KEY" };
+const USE_FIREBASE = FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== "YOUR_API_KEY";
 const $ = (id)=>document.getElementById(id);
-const getEvents = ()=>JSON.parse(localStorage.getItem("cal_events")||"[]");
-const setEvents = (v)=>localStorage.setItem("cal_events", JSON.stringify(v));
-const getRem = ()=>JSON.parse(localStorage.getItem("cal_reminders")||"[]");
-const setRem = (v)=>localStorage.setItem("cal_reminders", JSON.stringify(v));
 const dateStr = (d)=>d.toISOString().split("T")[0];
 const fmt = (s)=>{ const [y,m,d]=s.split("-"); return `${parseInt(d)}.${parseInt(m)}.${y}`; };
+
+let db = null;
+let eventsCache = [];
+let remindersCache = [];
+let syncChannel = null;
+try { syncChannel = new BroadcastChannel("calendar_sync"); } catch (_) {}
+function notifyCalendarUpdated(){
+  localStorage.setItem("cal_events_updated_at", new Date().toISOString());
+  if (syncChannel) syncChannel.postMessage({ type: "events_updated" });
+}
+
+const localStore = {
+  getEvents: ()=>JSON.parse(localStorage.getItem("cal_events")||"[]"),
+  setEvents: (v)=>localStorage.setItem("cal_events", JSON.stringify(v)),
+  getRem: ()=>JSON.parse(localStorage.getItem("cal_reminders")||"[]"),
+  setRem: (v)=>localStorage.setItem("cal_reminders", JSON.stringify(v))
+};
+
+async function getEvents() {
+  if (!USE_FIREBASE) return localStore.getEvents();
+  const snap = await db.collection("events").orderBy("startDate", "desc").get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function saveEventData(eventData) {
+  if (!USE_FIREBASE) {
+    const events = localStore.getEvents();
+    const idx = events.findIndex(e => e.id === eventData.id);
+    if (idx >= 0) events[idx] = eventData; else events.push(eventData);
+    localStore.setEvents(events);
+    notifyCalendarUpdated();
+    return;
+  }
+  await db.collection("events").doc(eventData.id).set(eventData);
+}
+async function deleteEventData(id) {
+  if (!USE_FIREBASE) {
+    localStore.setEvents(localStore.getEvents().filter(e => e.id !== id));
+    notifyCalendarUpdated();
+    return;
+  }
+  await db.collection("events").doc(id).delete();
+}
+async function getReminders() {
+  if (!USE_FIREBASE) return localStore.getRem();
+  const snap = await db.collection("reminders").orderBy("date", "asc").get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+async function saveReminderData(rem) {
+  if (!USE_FIREBASE) {
+    const arr = localStore.getRem(); arr.push(rem); localStore.setRem(arr); return;
+  }
+  await db.collection("reminders").doc(rem.id).set(rem);
+}
+async function deleteReminderData(id) {
+  if (!USE_FIREBASE) {
+    localStore.setRem(localStore.getRem().filter(r => r.id !== id)); return;
+  }
+  await db.collection("reminders").doc(id).delete();
+}
 
 function doLogin(){
   const pass = $("pass").value;
@@ -175,14 +235,31 @@ function doLogin(){
 function logout(){ sessionStorage.removeItem("logged_in"); location.reload(); }
 if(sessionStorage.getItem("logged_in")==="true"){ $("login").style.display="none"; $("app").style.display="block"; setTimeout(init,10); }
 
-function init(){
+async function init(){
+  if (USE_FIREBASE) {
+    firebase.initializeApp(FIREBASE_CONFIG);
+    db = firebase.firestore();
+  }
+
   $("today").textContent = new Date().toLocaleDateString("hr-HR");
-  if(!localStorage.getItem("cal_reminders")){
-    setRem([{id:"r1",title:"Praznik rada",date:"2026-05-01",daysBefore:7,recurring:"yes",note:"Provjeriti plan"}]);
+  if(!USE_FIREBASE && !localStorage.getItem("cal_reminders")){
+    localStore.setRem([{id:"r1",title:"Praznik rada",date:"2026-05-01",daysBefore:7,recurring:"yes",note:"Provjeriti plan"}]);
   }
   $("erest").innerHTML = Object.entries(CONFIG.restaurants).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
   $("ecat").innerHTML = Object.entries(CONFIG.categories).map(([k,v])=>`<option value="${k}">${v}</option>`).join("");
-  refresh();
+
+  if (USE_FIREBASE) {
+    db.collection("events").orderBy("startDate", "desc").onSnapshot((snap) => {
+      eventsCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      refresh();
+    });
+    db.collection("reminders").orderBy("date", "asc").onSnapshot((snap) => {
+      remindersCache = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      refresh();
+    });
+  }
+
+  await refresh();
 }
 
 function switchView(view,btn){
@@ -193,9 +270,18 @@ function switchView(view,btn){
   refresh();
 }
 
-function refresh(){ renderDash(); renderEvents(); renderReminders(); }
+async function refresh(){
+  if (!USE_FIREBASE) {
+    eventsCache = await getEvents();
+    remindersCache = await getReminders();
+  }
+  renderDash();
+  renderEvents();
+  renderReminders();
+}
+
 function renderDash(){
-  const events=getEvents(); const rem=getRem(); const t=new Date(); t.setHours(0,0,0,0);
+  const events=eventsCache; const rem=remindersCache; const t=new Date(); t.setHours(0,0,0,0);
   const ts=dateStr(t); const w=new Date(t); w.setDate(w.getDate()+7); const ws=dateStr(w);
   const active=events.filter(e=>e.startDate<=ts&&e.endDate>=ts).length;
   const up=events.filter(e=>e.startDate>ts&&e.startDate<=ws).length;
@@ -210,7 +296,7 @@ function renderDash(){
 }
 
 function renderEvents(){
-  const events = getEvents().sort((a,b)=>b.startDate.localeCompare(a.startDate));
+  const events = [...eventsCache].sort((a,b)=>b.startDate.localeCompare(a.startDate));
   $("eventsBody").innerHTML = events.length ? events.map(e=>`<tr>
     <td>${e.title}</td><td>${CONFIG.categories[e.category]||e.category}</td><td>${CONFIG.restaurants[e.restaurant]||e.restaurant}</td>
     <td>${fmt(e.startDate)}</td><td>${fmt(e.endDate)}</td>
@@ -225,32 +311,35 @@ function openEvent(e=null){
   $("eventModal").classList.add("active");
 }
 function closeEvent(){ $("eventModal").classList.remove("active"); }
-function saveEvent(){
+async function saveEvent(){
   const title=$("etitle").value.trim(), start=$("estart").value, end=$("eend").value;
   if(!title||!start||!end){ alert("Naziv, od i do su obavezni."); return; }
   if(end<start){ alert("Kraj ne moze prije pocetka."); return; }
-  const events=getEvents(); const id=$("eid").value || `evt_${Date.now()}`;
+  const id=$("eid").value || `evt_${Date.now()}`;
   const data={id,title,restaurant:$("erest").value,category:$("ecat").value,startDate:start,endDate:end,description:$("edesc").value.trim(),createdAt:new Date().toISOString()};
-  const i=events.findIndex(x=>x.id===id); if(i>=0) events[i]=data; else events.push(data);
-  setEvents(events); closeEvent(); refresh();
+  await saveEventData(data);
+  closeEvent();
+  await refresh();
 }
-function editEvent(id){ const e=getEvents().find(x=>x.id===id); if(e) openEvent(e); }
-function delEvent(id){ if(!confirm("Obrisati dogadaj?")) return; setEvents(getEvents().filter(x=>x.id!==id)); refresh(); }
+function editEvent(id){ const e=eventsCache.find(x=>x.id===id); if(e) openEvent(e); }
+async function delEvent(id){ if(!confirm("Obrisati dogadaj?")) return; await deleteEventData(id); await refresh(); }
 
 function renderReminders(){
-  const rem=getRem().sort((a,b)=>a.date.localeCompare(b.date));
+  const rem=[...remindersCache].sort((a,b)=>a.date.localeCompare(b.date));
   $("remBody").innerHTML = rem.length ? rem.map(r=>`<tr><td>${r.title}</td><td>${fmt(r.date)}</td><td>${r.daysBefore}</td><td>${r.recurring==="yes"?"Da":"Ne"}</td><td><button class="btn red" onclick="delRem('${r.id}')">Brisi</button></td></tr>`).join("")
     : `<tr><td colspan="5" class="muted">Nema podsjetnika</td></tr>`;
 }
 function openReminder(){ $("rtitle").value=""; $("rdate").value=""; $("rdays").value="7"; $("rrec").value="yes"; $("rnote").value=""; $("remModal").classList.add("active"); }
 function closeReminder(){ $("remModal").classList.remove("active"); }
-function saveReminder(){
+async function saveReminder(){
   const title=$("rtitle").value.trim(), date=$("rdate").value;
   if(!title||!date){ alert("Naziv i datum su obavezni."); return; }
-  const rem=getRem(); rem.push({id:`rem_${Date.now()}`,title,date,daysBefore:$("rdays").value,recurring:$("rrec").value,note:$("rnote").value.trim()});
-  setRem(rem); closeReminder(); refresh();
+  const rem={id:`rem_${Date.now()}`,title,date,daysBefore:$("rdays").value,recurring:$("rrec").value,note:$("rnote").value.trim()};
+  await saveReminderData(rem);
+  closeReminder();
+  await refresh();
 }
-function delRem(id){ if(!confirm("Obrisati podsjetnik?")) return; setRem(getRem().filter(x=>x.id!==id)); refresh(); }
+async function delRem(id){ if(!confirm("Obrisati podsjetnik?")) return; await deleteReminderData(id); await refresh(); }
 
 function saveSettings(){
   const p=$("setPass").value.trim();

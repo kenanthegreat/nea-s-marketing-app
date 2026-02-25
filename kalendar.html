@@ -105,10 +105,11 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   padding:0 8px 12px; gap:2px;
 }
 .day-cell {
-  min-height:70px; padding:4px; border-radius:8px;
+  min-height:70px; height:70px; padding:4px; border-radius:8px;
   cursor:default; transition:background 0.15s; position:relative;
+  overflow:hidden;
 }
-@media(max-width:1024px) { .day-cell { min-height:80px; } }
+@media(max-width:1024px) { .day-cell { min-height:80px; height:80px; } }
 .day-cell:hover { background:#f8fafc; }
 .day-cell.empty { opacity:0.3; }
 .day-cell.other-month .day-number { color:#cbd5e1; }
@@ -133,6 +134,7 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
   line-height:1.4;
+  display:block; width:100%; max-width:100%;
 }
 .event-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:10; position:relative; }
 .more-events {
@@ -255,6 +257,9 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   <div class="modal day-modal" id="dayModalContent" onclick="event.stopPropagation()"></div>
 </div>
 
+<script src="app-config.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 <script>
 // ============================================================
 // KONFIGURACIJA — Uredi prema svojim potrebama
@@ -284,9 +289,9 @@ const CONFIG = {
 };
 
 // ============================================================
-// FIREBASE KONFIGURACIJA (zamijenite sa vašim podacima)
+// FIREBASE KONFIGURACIJA (uzima iz app-config.js)
 // ============================================================
-const firebaseConfig = {
+const firebaseConfig = (window.APP_CONFIG && window.APP_CONFIG.firebase) ? window.APP_CONFIG.firebase : {
   apiKey: "YOUR_API_KEY",
   authDomain: "YOUR_PROJECT.firebaseapp.com",
   projectId: "YOUR_PROJECT_ID",
@@ -318,6 +323,8 @@ let allEvents = [];
 let filteredEvents = [];
 let activeFilter = 'all';
 let centerDate = new Date();
+let syncChannel = null;
+let unsubEvents = null;
 
 const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
                      'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
@@ -382,9 +389,6 @@ function fmt(y, m, d) {
 // ============================================================
 async function init() {
   if (USE_FIREBASE) {
-    // Dynamic import
-    await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-    await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
     firebase.initializeApp(firebaseConfig);
     db = firebase.firestore();
   } else {
@@ -397,21 +401,50 @@ async function init() {
   renderFilters();
   renderLegend();
   renderCalendars();
-  
-  // Auto-refresh every 60 seconds
-  setInterval(async () => {
-    allEvents = await DataStore.getEvents();
-    applyFilter();
-  }, 60000);
+  setupRealtimeSync();
+
+  if (USE_FIREBASE) {
+    startCloudSync();
+  } else {
+    // Safety poll in local mode
+    setInterval(async () => {
+      allEvents = await DataStore.getEvents();
+      applyFilter();
+    }, 60000);
+  }
 }
 
-function loadScript(src) {
-  return new Promise((resolve, reject) => {
-    if (document.querySelector(`script[src="${src}"]`)) { resolve(); return; }
-    const s = document.createElement('script');
-    s.src = src; s.onload = resolve; s.onerror = reject;
-    document.head.appendChild(s);
-  });
+function setupRealtimeSync() {
+  // Realtime between tabs/windows on the same origin.
+  if (!USE_FIREBASE) {
+    window.addEventListener('storage', async (e) => {
+      if (e.key === 'cal_events' || e.key === 'cal_events_updated_at') {
+        allEvents = await DataStore.getEvents();
+        applyFilter();
+      }
+    });
+    try {
+      syncChannel = new BroadcastChannel('calendar_sync');
+      syncChannel.onmessage = async (e) => {
+        if (e.data && e.data.type === 'events_updated') {
+          allEvents = await DataStore.getEvents();
+          applyFilter();
+        }
+      };
+    } catch (_) {}
+  }
+}
+
+function startCloudSync() {
+  if (!db) return;
+  if (unsubEvents) unsubEvents();
+  unsubEvents = db.collection('events').orderBy('startDate')
+    .onSnapshot((snap) => {
+      allEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      applyFilter();
+    }, (err) => {
+      console.error('Firestore sync error:', err);
+    });
 }
 
 // ============================================================
