@@ -34,6 +34,14 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 }
 .header h1 { font-size:1.5rem; font-weight:800; letter-spacing:-0.5px; }
 .header p { font-size:0.85rem; opacity:0.7; margin-top:4px; }
+.admin-entry {
+  position:absolute; right:16px; top:16px;
+  border:1px solid rgba(255,255,255,0.35); color:#fff;
+  background:rgba(255,255,255,0.12); backdrop-filter:blur(4px);
+  border-radius:20px; padding:8px 14px; font-size:0.8rem;
+  font-weight:700; cursor:pointer; font-family:inherit;
+}
+.admin-entry:hover { background:rgba(255,255,255,0.2); }
 
 /* FILTERS */
 .filters {
@@ -222,11 +230,73 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   text-align:center; padding:60px 24px; color:var(--text2);
 }
 .no-events .icon { font-size:3rem; margin-bottom:12px; }
+
+/* ADMIN IN PAGE */
+.admin-login { max-width:380px; }
+.admin-login-body { padding:24px; }
+.admin-login-body h3 { font-size:1.1rem; margin-bottom:6px; }
+.admin-login-body p { color:var(--text2); font-size:0.85rem; margin-bottom:14px; }
+.admin-login-body input {
+  width:100%; border:2px solid var(--border); border-radius:10px;
+  padding:11px 12px; font-size:0.95rem; font-family:inherit;
+}
+.admin-login-body input:focus { outline:none; border-color:var(--today-bg); }
+.admin-login-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:12px; }
+.admin-btn {
+  border:none; border-radius:10px; cursor:pointer; font-family:inherit;
+  font-weight:700; font-size:0.85rem; padding:10px 14px;
+}
+.admin-btn.secondary { background:#e2e8f0; color:#1e293b; }
+.admin-btn.primary { background:var(--today-bg); color:#fff; }
+.admin-login-error { color:#ef4444; font-size:0.8rem; margin-top:8px; display:none; }
+
+.admin-app { max-width:1100px; width:100%; max-height:90vh; overflow:hidden; }
+.admin-app-header {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:16px 20px; border-bottom:1px solid var(--border);
+}
+.admin-app-header h2 { font-size:1.05rem; }
+.admin-app-body {
+  display:grid; grid-template-columns:340px 1fr; gap:14px;
+  padding:14px; overflow:auto; max-height:calc(90vh - 70px);
+}
+@media(max-width:980px) { .admin-app-body { grid-template-columns:1fr; } }
+.admin-card {
+  border:1px solid var(--border); border-radius:12px; background:#fff; padding:12px;
+}
+.admin-card h3 { font-size:0.92rem; margin-bottom:10px; }
+.admin-field { margin-bottom:10px; }
+.admin-field label { display:block; font-size:0.78rem; color:var(--text2); margin-bottom:4px; }
+.admin-field input, .admin-field select, .admin-field textarea {
+  width:100%; border:2px solid var(--border); border-radius:10px;
+  padding:9px 10px; font-size:0.87rem; font-family:inherit;
+}
+.admin-field input:focus, .admin-field select:focus, .admin-field textarea:focus {
+  outline:none; border-color:var(--today-bg);
+}
+.admin-field textarea { min-height:72px; resize:vertical; }
+.admin-two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.admin-list { max-height:60vh; overflow:auto; }
+.admin-item {
+  border:1px solid var(--border); border-radius:10px; padding:10px;
+  margin-bottom:8px; background:#f8fafc;
+}
+.admin-item h4 { font-size:0.88rem; margin-bottom:4px; }
+.admin-meta { font-size:0.76rem; color:var(--text2); margin-bottom:8px; }
+.admin-item-actions { display:flex; gap:6px; }
+.admin-small {
+  border:none; border-radius:8px; cursor:pointer; font-family:inherit;
+  font-size:0.76rem; font-weight:700; padding:6px 10px;
+}
+.admin-small.edit { background:#dbeafe; color:#1d4ed8; }
+.admin-small.del { background:#fee2e2; color:#dc2626; }
+.admin-empty { color:var(--text2); font-size:0.85rem; padding:10px 2px; }
 </style>
 </head>
 <body>
 
 <div class="header">
+  <button class="admin-entry" onclick="openAdminEntry()">Admin</button>
   <h1>🍽️ Akcije & Promocije</h1>
   <p>Pregled svih akcija, promocija i evenata naših restorana</p>
 </div>
@@ -255,6 +325,74 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 <!-- Day Events Modal -->
 <div class="modal-overlay" id="dayModal" onclick="closeModal(event)">
   <div class="modal day-modal" id="dayModalContent" onclick="event.stopPropagation()"></div>
+</div>
+
+<!-- Admin Login Modal -->
+<div class="modal-overlay" id="adminLoginModal" onclick="closeModal(event)">
+  <div class="modal admin-login" onclick="event.stopPropagation()">
+    <div class="admin-login-body">
+      <h3>Admin prijava</h3>
+      <p>Unesite lozinku za upravljanje dogadjajima.</p>
+      <input type="password" id="adminLoginPassword" placeholder="Lozinka" onkeypress="if(event.key==='Enter')submitAdminLogin()">
+      <div class="admin-login-error" id="adminLoginError">Pogresna lozinka.</div>
+      <div class="admin-login-actions">
+        <button class="admin-btn secondary" onclick="closeAllModals()">Zatvori</button>
+        <button class="admin-btn primary" onclick="submitAdminLogin()">Prijavi se</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Admin Panel Modal -->
+<div class="modal-overlay" id="adminPanelModal" onclick="closeModal(event)">
+  <div class="modal admin-app" onclick="event.stopPropagation()">
+    <div class="admin-app-header">
+      <h2>Admin - Upravljanje dogadjajima</h2>
+      <button class="admin-btn secondary" onclick="closeAllModals()">Zatvori</button>
+    </div>
+    <div class="admin-app-body">
+      <div class="admin-card">
+        <h3 id="adminFormTitle">Novi dogadjaj</h3>
+        <input type="hidden" id="adminEventId">
+        <div class="admin-field">
+          <label>Naziv</label>
+          <input type="text" id="adminEventTitle" placeholder="npr. Family bucket akcija">
+        </div>
+        <div class="admin-two">
+          <div class="admin-field">
+            <label>Restoran</label>
+            <select id="adminEventRestaurant"></select>
+          </div>
+          <div class="admin-field">
+            <label>Kategorija</label>
+            <select id="adminEventCategory"></select>
+          </div>
+        </div>
+        <div class="admin-two">
+          <div class="admin-field">
+            <label>Od</label>
+            <input type="date" id="adminEventStart">
+          </div>
+          <div class="admin-field">
+            <label>Do</label>
+            <input type="date" id="adminEventEnd">
+          </div>
+        </div>
+        <div class="admin-field">
+          <label>Opis</label>
+          <textarea id="adminEventDesc" placeholder="Detalji promocije..."></textarea>
+        </div>
+        <div class="admin-login-actions">
+          <button class="admin-btn secondary" onclick="resetAdminForm()">Novo</button>
+          <button class="admin-btn primary" onclick="saveAdminEvent()">Spremi</button>
+        </div>
+      </div>
+      <div class="admin-card">
+        <h3>Svi dogadjaji</h3>
+        <div class="admin-list" id="adminEventsList"></div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script src="app-config.js"></script>
@@ -317,6 +455,27 @@ const DataStore = {
       }
     }
     return JSON.parse(localStorage.getItem('cal_events') || '[]');
+  },
+  async upsertEvent(eventData) {
+    if (USE_FIREBASE && db) {
+      await db.collection('events').doc(eventData.id).set(eventData);
+      return;
+    }
+    const events = JSON.parse(localStorage.getItem('cal_events') || '[]');
+    const idx = events.findIndex(e => e.id === eventData.id);
+    if (idx >= 0) events[idx] = eventData; else events.push(eventData);
+    localStorage.setItem('cal_events', JSON.stringify(events));
+    notifyLocalEventsChanged();
+  },
+  async deleteEvent(eventId) {
+    if (USE_FIREBASE && db) {
+      await db.collection('events').doc(eventId).delete();
+      return;
+    }
+    const events = JSON.parse(localStorage.getItem('cal_events') || '[]')
+      .filter(e => e.id !== eventId);
+    localStorage.setItem('cal_events', JSON.stringify(events));
+    notifyLocalEventsChanged();
   }
 };
 
@@ -329,6 +488,7 @@ let activeFilter = 'all';
 let centerDate = new Date();
 let syncChannel = null;
 let unsubEvents = null;
+const DEFAULT_ADMIN_PASS = 'admin123';
 
 const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
                      'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
@@ -397,6 +557,7 @@ async function init() {
   renderLegend();
   renderCalendars();
   setupRealtimeSync();
+  initAdminUi();
   
   try {
     if (USE_FIREBASE) {
@@ -411,6 +572,7 @@ async function init() {
     allEvents = await DataStore.getEvents();
     filteredEvents = [...allEvents];
     renderCalendars();
+    renderAdminEvents();
 
     if (USE_FIREBASE) {
       startCloudSync();
@@ -427,7 +589,17 @@ async function init() {
     allEvents = JSON.parse(localStorage.getItem('cal_events') || '[]');
     filteredEvents = [...allEvents];
     renderCalendars();
+    renderAdminEvents();
   }
+}
+
+function notifyLocalEventsChanged() {
+  localStorage.setItem('cal_events_updated_at', new Date().toISOString());
+  try {
+    const ch = new BroadcastChannel('calendar_sync');
+    ch.postMessage({ type: 'events_updated' });
+    ch.close();
+  } catch (_) {}
 }
 
 function setupRealtimeSync() {
@@ -485,6 +657,7 @@ function applyFilter() {
     ? [...allEvents]
     : allEvents.filter(e => e.restaurant === activeFilter || e.restaurant === 'all');
   renderCalendars();
+  renderAdminEvents();
 }
 
 // ============================================================
@@ -607,6 +780,151 @@ function renderDayCell(year, month, day, isCurrentMonth, today) {
 
 function getEventsForDate(dateStr) {
   return filteredEvents.filter(ev => dateStr >= ev.startDate && dateStr <= ev.endDate);
+}
+
+// ============================================================
+// ADMIN (single-page mode)
+// ============================================================
+function getAdminPassword() {
+  return localStorage.getItem('admin_pass') || DEFAULT_ADMIN_PASS;
+}
+
+function initAdminUi() {
+  const rest = document.getElementById('adminEventRestaurant');
+  const cat = document.getElementById('adminEventCategory');
+  if (!rest || !cat) return;
+  rest.innerHTML = Object.entries(CONFIG.restaurants).map(([k, v]) =>
+    `<option value="${k}">${v}</option>`
+  ).join('');
+  cat.innerHTML = Object.entries(CONFIG.categories).map(([k, v]) =>
+    `<option value="${k}">${v.label}</option>`
+  ).join('');
+  resetAdminForm();
+}
+
+function openAdminEntry() {
+  const logged = sessionStorage.getItem('calendar_admin_logged') === 'true';
+  if (logged) {
+    openAdminPanel();
+    return;
+  }
+  document.getElementById('adminLoginError').style.display = 'none';
+  document.getElementById('adminLoginPassword').value = '';
+  document.getElementById('adminLoginModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function submitAdminLogin() {
+  const input = document.getElementById('adminLoginPassword').value;
+  if (input !== getAdminPassword()) {
+    document.getElementById('adminLoginError').style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('calendar_admin_logged', 'true');
+  document.getElementById('adminLoginModal').classList.remove('active');
+  openAdminPanel();
+}
+
+function openAdminPanel() {
+  renderAdminEvents();
+  document.getElementById('adminPanelModal').classList.add('active');
+  document.body.style.overflow = 'hidden';
+}
+
+function resetAdminForm() {
+  document.getElementById('adminFormTitle').textContent = 'Novi dogadjaj';
+  document.getElementById('adminEventId').value = '';
+  document.getElementById('adminEventTitle').value = '';
+  document.getElementById('adminEventRestaurant').value = 'all';
+  document.getElementById('adminEventCategory').value = 'akcija';
+  document.getElementById('adminEventStart').value = '';
+  document.getElementById('adminEventEnd').value = '';
+  document.getElementById('adminEventDesc').value = '';
+}
+
+function editAdminEvent(eventId) {
+  const ev = allEvents.find(e => e.id === eventId);
+  if (!ev) return;
+  document.getElementById('adminFormTitle').textContent = 'Uredi dogadjaj';
+  document.getElementById('adminEventId').value = ev.id || '';
+  document.getElementById('adminEventTitle').value = ev.title || '';
+  document.getElementById('adminEventRestaurant').value = ev.restaurant || 'all';
+  document.getElementById('adminEventCategory').value = ev.category || 'akcija';
+  document.getElementById('adminEventStart').value = ev.startDate || '';
+  document.getElementById('adminEventEnd').value = ev.endDate || '';
+  document.getElementById('adminEventDesc').value = ev.description || '';
+}
+
+async function saveAdminEvent() {
+  const title = document.getElementById('adminEventTitle').value.trim();
+  const startDate = document.getElementById('adminEventStart').value;
+  const endDate = document.getElementById('adminEventEnd').value;
+  if (!title || !startDate || !endDate) {
+    alert('Naziv, datum od i datum do su obavezni.');
+    return;
+  }
+  if (endDate < startDate) {
+    alert('Datum do ne moze biti prije datuma od.');
+    return;
+  }
+
+  const id = document.getElementById('adminEventId').value || `evt_${Date.now()}`;
+  const eventData = {
+    id,
+    title,
+    restaurant: document.getElementById('adminEventRestaurant').value,
+    category: document.getElementById('adminEventCategory').value,
+    startDate,
+    endDate,
+    description: document.getElementById('adminEventDesc').value.trim(),
+    updatedAt: new Date().toISOString()
+  };
+
+  try {
+    await DataStore.upsertEvent(eventData);
+    allEvents = await DataStore.getEvents();
+    applyFilter();
+    resetAdminForm();
+  } catch (err) {
+    console.error('Save event failed:', err);
+    alert('Spremanje nije uspjelo. Provjerite Firestore/API postavke.');
+  }
+}
+
+async function deleteAdminEvent(eventId) {
+  if (!confirm('Obrisati ovaj dogadjaj?')) return;
+  try {
+    await DataStore.deleteEvent(eventId);
+    allEvents = await DataStore.getEvents();
+    applyFilter();
+  } catch (err) {
+    console.error('Delete event failed:', err);
+    alert('Brisanje nije uspjelo. Provjerite Firestore/API postavke.');
+  }
+}
+
+function renderAdminEvents() {
+  const list = document.getElementById('adminEventsList');
+  if (!list) return;
+
+  const sorted = [...allEvents].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  if (!sorted.length) {
+    list.innerHTML = '<div class="admin-empty">Nema dogadjaja.</div>';
+    return;
+  }
+
+  list.innerHTML = sorted.map((ev) => {
+    const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+    const rest = CONFIG.restaurants[ev.restaurant] || ev.restaurant || 'Svi restorani';
+    return `<div class="admin-item">
+      <h4>${ev.title}</h4>
+      <div class="admin-meta">${cat.label} | ${rest} | ${formatDate(ev.startDate)} - ${formatDate(ev.endDate)}</div>
+      <div class="admin-item-actions">
+        <button class="admin-small edit" onclick="editAdminEvent('${ev.id}')">Uredi</button>
+        <button class="admin-small del" onclick="deleteAdminEvent('${ev.id}')">Obrisi</button>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ============================================================
