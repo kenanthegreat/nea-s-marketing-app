@@ -124,7 +124,6 @@ body {
 }
 .days-grid {
   display:grid; grid-template-columns:repeat(7,minmax(0,1fr));
-  grid-template-rows:repeat(6,minmax(0,1fr));
   padding:0 8px 8px; gap:4px;
   min-height:0; height:100%;
 }
@@ -165,11 +164,16 @@ body {
 }
 .event-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:10; position:relative; }
 .day-events {
-  flex:1 1 auto; min-height:0; overflow-y:auto; padding-right:2px;
-  scrollbar-gutter:stable;
+  flex:1 1 auto; min-height:0; overflow:hidden; padding-right:2px;
 }
-.day-events::-webkit-scrollbar { width:4px; }
-.day-events::-webkit-scrollbar-thumb { background:#cbd5e1; border-radius:6px; }
+.more-events {
+  font-size:0.7rem;
+  color:var(--today-bg);
+  font-weight:800;
+  padding:2px 4px;
+  cursor:pointer;
+}
+.more-events:hover { text-decoration:underline; }
 
 /* LEGEND */
 .legend {
@@ -759,6 +763,9 @@ function renderMonth(year, month, position) {
   
   const today = new Date();
   const isCenter = position === 'center';
+  const totalCells = startDow + daysInMonth;
+  const rows = Math.ceil(totalCells / 7);
+  const maxVisible = rows <= 4 ? 8 : (rows === 5 ? 5 : 3);
   
   let cells = '';
   
@@ -767,21 +774,20 @@ function renderMonth(year, month, position) {
     const d = prevMonthDays - i;
     const pm = month === 0 ? 11 : month - 1;
     const py = month === 0 ? year - 1 : year;
-    cells += renderDayCell(py, pm, d, false, today);
+    cells += renderDayCell(py, pm, d, false, today, maxVisible);
   }
   
   // Current month days
   for (let d = 1; d <= daysInMonth; d++) {
-    cells += renderDayCell(year, month, d, true, today);
+    cells += renderDayCell(year, month, d, true, today, maxVisible);
   }
   
   // Next month padding
-  const totalCells = startDow + daysInMonth;
-  const remaining = 42 - totalCells;
+  const remaining = (rows * 7) - totalCells;
   const nm = month === 11 ? 0 : month + 1;
   const ny = month === 11 ? year + 1 : year;
   for (let d = 1; d <= remaining; d++) {
-    cells += renderDayCell(ny, nm, d, false, today);
+    cells += renderDayCell(ny, nm, d, false, today, maxVisible);
   }
   
   return `
@@ -790,11 +796,11 @@ function renderMonth(year, month, position) {
       <div class="day-names">
         ${DAY_NAMES.map(d => `<div class="day-name">${d}</div>`).join('')}
       </div>
-      <div class="days-grid">${cells}</div>
+      <div class="days-grid" style="grid-template-rows:repeat(${rows}, minmax(0,1fr));">${cells}</div>
     </div>`;
 }
 
-function renderDayCell(year, month, day, isCurrentMonth, today) {
+function renderDayCell(year, month, day, isCurrentMonth, today, maxVisible = 4) {
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const dayEvents = getEventsForDate(dateStr);
@@ -805,13 +811,17 @@ function renderDayCell(year, month, day, isCurrentMonth, today) {
     isToday ? 'today' : ''
   ].filter(Boolean).join(' ');
   
-  let eventsHtml = dayEvents.map(ev => {
+  let eventsHtml = dayEvents.slice(0, maxVisible).map(ev => {
     const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
     return `<div class="event-pill" style="background:${cat.color}" 
                  onclick="showEventDetail('${ev.id}')" title="${ev.title}">
               ${cat.icon} ${ev.title}
             </div>`;
   }).join('');
+
+  if (dayEvents.length > maxVisible) {
+    eventsHtml += `<div class="more-events" onclick="showDayEvents('${dateStr}')">+${dayEvents.length - maxVisible} više</div>`;
+  }
 
   return `<div class="${classes}">
     <span class="day-number">${day}</span>
