@@ -170,8 +170,46 @@ body {
   font-size:0.7rem;
   color:var(--today-bg);
   font-weight:800;
-  padding:2px 4px;
+  padding:2px 6px;
   cursor:pointer;
+  background:#eef2ff;
+  border-radius:6px;
+  border:1px solid #dbeafe;
+}
+.more-events-popup {
+  position:fixed;
+  z-index:1200;
+  min-width:220px;
+  max-width:320px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  box-shadow:0 18px 42px rgba(0,0,0,0.18);
+  overflow:hidden;
+}
+.more-events-popup-head {
+  padding:10px 12px;
+  background:#1e293b;
+  color:#fff;
+  font-size:0.8rem;
+  font-weight:700;
+}
+.more-events-popup-list {
+  max-height:280px;
+  overflow-y:auto;
+  padding:8px;
+}
+.more-events-popup-item {
+  color:#fff;
+  border-radius:7px;
+  padding:7px 9px;
+  font-size:0.78rem;
+  font-weight:700;
+  margin-bottom:6px;
+  cursor:pointer;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 .more-events:hover { text-decoration:underline; }
 
@@ -550,6 +588,7 @@ let syncChannel = null;
 let unsubEvents = null;
 const DEFAULT_ADMIN_PASS = 'admin123';
 let adminImageData = '';
+let dayEventsPopupEl = null;
 
 const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
                      'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
@@ -747,6 +786,7 @@ function goToday() {
 }
 
 function renderCalendars() {
+  hideDayEventsPopup();
   const container = document.getElementById('calendars');
   const cy = centerDate.getFullYear();
   const cm = centerDate.getMonth();
@@ -765,7 +805,7 @@ function renderMonth(year, month, position) {
   const isCenter = position === 'center';
   const totalCells = startDow + daysInMonth;
   const rows = Math.ceil(totalCells / 7);
-  const maxVisible = rows <= 4 ? 8 : (rows === 5 ? 5 : 3);
+  const maxVisible = rows <= 4 ? 10 : (rows === 5 ? 7 : 4);
   
   let cells = '';
   
@@ -820,7 +860,7 @@ function renderDayCell(year, month, day, isCurrentMonth, today, maxVisible = 4) 
   }).join('');
 
   if (dayEvents.length > maxVisible) {
-    eventsHtml += `<div class="more-events" onclick="showDayEvents('${dateStr}')">+${dayEvents.length - maxVisible} više</div>`;
+    eventsHtml += `<div class="more-events" onclick="showDayEventsPopup(event, '${dateStr}')">+${dayEvents.length - maxVisible} više</div>`;
   }
 
   return `<div class="${classes}">
@@ -1147,10 +1187,70 @@ function showDayEvents(dateStr) {
   document.body.style.overflow = 'hidden';
 }
 
+function showDayEventsPopup(e, dateStr) {
+  e.stopPropagation();
+  hideDayEventsPopup();
+
+  const dayEvents = getEventsForDate(dateStr);
+  if (!dayEvents.length) return;
+
+  const trigger = e.currentTarget;
+  const rect = trigger.getBoundingClientRect();
+
+  const popup = document.createElement('div');
+  popup.className = 'more-events-popup';
+  popup.innerHTML = `
+    <div class="more-events-popup-head">📅 ${formatDate(dateStr)} (${dayEvents.length})</div>
+    <div class="more-events-popup-list">
+      ${dayEvents.map(ev => {
+        const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+        return `<div class="more-events-popup-item" style="background:${cat.color}" data-event-id="${ev.id}">
+          ${cat.icon} ${ev.title}
+        </div>`;
+      }).join('')}
+    </div>
+  `;
+
+  document.body.appendChild(popup);
+  dayEventsPopupEl = popup;
+
+  popup.querySelectorAll('.more-events-popup-item').forEach((item) => {
+    item.addEventListener('click', () => {
+      hideDayEventsPopup();
+      showEventDetail(item.dataset.eventId);
+    });
+  });
+
+  const margin = 8;
+  const popupRect = popup.getBoundingClientRect();
+  let left = rect.left;
+  let top = rect.bottom + margin;
+
+  if (left + popupRect.width > window.innerWidth - margin) {
+    left = window.innerWidth - popupRect.width - margin;
+  }
+  if (top + popupRect.height > window.innerHeight - margin) {
+    top = rect.top - popupRect.height - margin;
+  }
+  if (top < margin) top = margin;
+  if (left < margin) left = margin;
+
+  popup.style.left = `${left}px`;
+  popup.style.top = `${top}px`;
+}
+
+function hideDayEventsPopup() {
+  if (dayEventsPopupEl) {
+    dayEventsPopupEl.remove();
+    dayEventsPopupEl = null;
+  }
+}
+
 function closeModal(e) {
   if (e.target.classList.contains('modal-overlay')) closeAllModals();
 }
 function closeAllModals() {
+  hideDayEventsPopup();
   document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
   document.body.style.overflow = '';
 }
@@ -1161,7 +1261,17 @@ function formatDate(dateStr) {
 }
 
 // Keyboard close
-document.addEventListener('keydown', e => { if (e.key === 'Escape') closeAllModals(); });
+document.addEventListener('click', (e) => {
+  if (dayEventsPopupEl && !dayEventsPopupEl.contains(e.target) && !e.target.classList.contains('more-events')) {
+    hideDayEventsPopup();
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    hideDayEventsPopup();
+    closeAllModals();
+  }
+});
 
 // Start
 init();
