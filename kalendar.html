@@ -113,17 +113,17 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   padding:0 8px 12px; gap:2px;
 }
 .day-cell {
-  min-height:70px; height:70px; padding:4px; border-radius:8px;
+  min-height:102px; height:102px; padding:6px; border-radius:10px;
   cursor:default; transition:background 0.15s; position:relative;
   overflow:hidden;
 }
-@media(max-width:1024px) { .day-cell { min-height:80px; height:80px; } }
+@media(max-width:1024px) { .day-cell { min-height:112px; height:112px; } }
 .day-cell:hover { background:#f8fafc; }
 .day-cell.empty { opacity:0.3; }
 .day-cell.other-month .day-number { color:#cbd5e1; }
 .day-number {
-  font-size:0.8rem; font-weight:600; display:inline-flex;
-  width:26px; height:26px; align-items:center; justify-content:center;
+  font-size:0.86rem; font-weight:700; display:inline-flex;
+  width:28px; height:28px; align-items:center; justify-content:center;
   border-radius:50%; margin-bottom:2px;
 }
 .day-cell.today .day-number {
@@ -137,16 +137,18 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 
 /* EVENT PILLS */
 .event-pill {
-  font-size:0.65rem; font-weight:600; color:#fff;
-  padding:2px 6px; border-radius:4px; margin-bottom:2px;
-  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  font-size:0.74rem; font-weight:700; color:#fff;
+  padding:4px 8px; border-radius:6px; margin-bottom:4px;
+  white-space:normal; overflow:hidden; text-overflow:ellipsis;
   cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
-  line-height:1.4;
+  line-height:1.15;
   display:block; width:100%; max-width:100%;
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical;
+  min-height:26px;
 }
 .event-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:10; position:relative; }
 .more-events {
-  font-size:0.65rem; color:var(--today-bg); font-weight:600;
+  font-size:0.72rem; color:var(--today-bg); font-weight:700;
   cursor:pointer; padding:2px 6px;
 }
 .more-events:hover { text-decoration:underline; }
@@ -198,6 +200,13 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
 .modal-desc {
   margin-top:16px; padding:16px; background:#f8fafc;
   border-radius:12px; font-size:0.9rem; line-height:1.6; color:#475569;
+}
+.modal-attachment {
+  margin-top:14px; border:1px solid var(--border);
+  border-radius:12px; overflow:hidden; background:#eef2f7;
+}
+.modal-attachment img {
+  display:block; width:100%; max-height:300px; object-fit:cover;
 }
 .modal-close {
   position:absolute; top:16px; right:16px; width:36px; height:36px;
@@ -275,6 +284,23 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
   outline:none; border-color:var(--today-bg);
 }
 .admin-field textarea { min-height:72px; resize:vertical; }
+.admin-dropzone {
+  border:2px dashed #cbd5e1; border-radius:12px; padding:14px;
+  text-align:center; background:#f8fafc; cursor:pointer;
+}
+.admin-dropzone.dragover {
+  border-color:var(--today-bg); background:#eff6ff;
+}
+.admin-dropzone p {
+  font-size:0.8rem; color:var(--text2); margin:0;
+}
+.admin-image-preview {
+  width:100%; max-height:170px; object-fit:cover;
+  border-radius:10px; display:none; margin-top:8px;
+}
+.admin-upload-actions {
+  display:flex; justify-content:flex-end; margin-top:6px;
+}
 .admin-two { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
 .admin-list { max-height:60vh; overflow:auto; }
 .admin-item {
@@ -381,6 +407,17 @@ body { font-family:'Inter',system-ui,sans-serif; background:var(--bg); color:var
         <div class="admin-field">
           <label>Opis</label>
           <textarea id="adminEventDesc" placeholder="Detalji promocije..."></textarea>
+        </div>
+        <div class="admin-field">
+          <label>Slika (attachment)</label>
+          <div class="admin-dropzone" id="adminDropzone">
+            <p id="adminDropHint">Prevuci sliku ovdje ili klikni za upload.</p>
+            <input type="file" id="adminImageInput" accept="image/*" style="display:none">
+            <img id="adminImagePreview" class="admin-image-preview" alt="Pregled slike">
+          </div>
+          <div class="admin-upload-actions">
+            <button class="admin-small del" type="button" onclick="removeAdminImage()">Ukloni sliku</button>
+          </div>
         </div>
         <div class="admin-login-actions">
           <button class="admin-btn secondary" onclick="resetAdminForm()">Novo</button>
@@ -490,6 +527,7 @@ let centerDate = new Date();
 let syncChannel = null;
 let unsubEvents = null;
 const DEFAULT_ADMIN_PASS = 'admin123';
+let adminImageData = '';
 
 const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
                      'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
@@ -800,6 +838,7 @@ function initAdminUi() {
   cat.innerHTML = Object.entries(CONFIG.categories).map(([k, v]) =>
     `<option value="${k}">${v.label}</option>`
   ).join('');
+  setupAdminUpload();
   resetAdminForm();
 }
 
@@ -841,6 +880,8 @@ function resetAdminForm() {
   document.getElementById('adminEventStart').value = '';
   document.getElementById('adminEventEnd').value = '';
   document.getElementById('adminEventDesc').value = '';
+  adminImageData = '';
+  renderAdminImagePreview();
 }
 
 function editAdminEvent(eventId) {
@@ -854,6 +895,8 @@ function editAdminEvent(eventId) {
   document.getElementById('adminEventStart').value = ev.startDate || '';
   document.getElementById('adminEventEnd').value = ev.endDate || '';
   document.getElementById('adminEventDesc').value = ev.description || '';
+  adminImageData = ev.imageDataUrl || '';
+  renderAdminImagePreview();
 }
 
 async function saveAdminEvent() {
@@ -878,6 +921,7 @@ async function saveAdminEvent() {
     startDate,
     endDate,
     description: document.getElementById('adminEventDesc').value.trim(),
+    imageDataUrl: adminImageData || '',
     updatedAt: new Date().toISOString()
   };
 
@@ -928,6 +972,111 @@ function renderAdminEvents() {
   }).join('');
 }
 
+function setupAdminUpload() {
+  const zone = document.getElementById('adminDropzone');
+  const input = document.getElementById('adminImageInput');
+  if (!zone || !input) return;
+  if (zone.dataset.bound === '1') return;
+  zone.dataset.bound = '1';
+
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) await handleAdminImageFile(file);
+    input.value = '';
+  });
+
+  zone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    zone.classList.add('dragover');
+  });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    const file = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) await handleAdminImageFile(file);
+  });
+}
+
+async function handleAdminImageFile(file) {
+  if (!file.type || !file.type.startsWith('image/')) {
+    alert('Odaberite sliku (JPG, PNG, WEBP...).');
+    return;
+  }
+  const hint = document.getElementById('adminDropHint');
+  if (hint) hint.textContent = 'Obrada slike...';
+  try {
+    adminImageData = await compressImageToDataUrl(file, 700000);
+    renderAdminImagePreview();
+  } catch (err) {
+    console.error('Image upload failed:', err);
+    alert(err.message || 'Upload slike nije uspio.');
+  } finally {
+    if (hint) hint.textContent = 'Prevuci sliku ovdje ili klikni za upload.';
+  }
+}
+
+function removeAdminImage() {
+  adminImageData = '';
+  renderAdminImagePreview();
+}
+
+function renderAdminImagePreview() {
+  const img = document.getElementById('adminImagePreview');
+  if (!img) return;
+  if (adminImageData) {
+    img.src = adminImageData;
+    img.style.display = 'block';
+  } else {
+    img.src = '';
+    img.style.display = 'none';
+  }
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
+}
+
+async function compressImageToDataUrl(file, maxLen) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const img = await loadImageFromDataUrl(originalDataUrl);
+  const maxSide = 1400;
+
+  let w = img.width;
+  let h = img.height;
+  const ratio = Math.min(1, maxSide / Math.max(w, h));
+  w = Math.max(1, Math.round(w * ratio));
+  h = Math.max(1, Math.round(h * ratio));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+
+  const qualities = [0.86, 0.76, 0.66, 0.56, 0.48];
+  for (const q of qualities) {
+    const data = canvas.toDataURL('image/jpeg', q);
+    if (data.length <= maxLen) return data;
+  }
+  throw new Error('Slika je prevelika. Koristite manju sliku.');
+}
+
 // ============================================================
 // MODALS
 // ============================================================
@@ -957,6 +1106,7 @@ function showEventDetail(eventId) {
         <span class="icon">📅</span>
         <div><div class="label">Datum</div><div class="value">${dateDisplay}</div></div>
       </div>
+      ${ev.imageDataUrl ? `<div class="modal-attachment"><img src="${ev.imageDataUrl}" alt="Attachment"></div>` : ''}
       ${ev.description ? `<div class="modal-desc">${ev.description}</div>` : ''}
     </div>`;
   
