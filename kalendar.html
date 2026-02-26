@@ -47,6 +47,7 @@ body {
   background:rgba(255,255,255,0.12); backdrop-filter:blur(4px);
   border-radius:20px; padding:8px 14px; font-size:0.8rem;
   font-weight:700; cursor:pointer; font-family:inherit;
+  z-index:3; pointer-events:auto;
 }
 .admin-entry:hover { background:rgba(255,255,255,0.2); }
 
@@ -901,20 +902,42 @@ function openAdminEntry() {
     openAdminPanel();
     return;
   }
-  document.getElementById('adminLoginError').style.display = 'none';
-  document.getElementById('adminLoginPassword').value = '';
-  document.getElementById('adminLoginModal').classList.add('active');
-  document.body.style.overflow = 'hidden';
-}
-
-function submitAdminLogin() {
-  const input = document.getElementById('adminLoginPassword').value;
+  const modal = document.getElementById('adminLoginModal');
+  const errorEl = document.getElementById('adminLoginError');
+  const passEl = document.getElementById('adminLoginPassword');
+  if (modal && errorEl && passEl) {
+    errorEl.style.display = 'none';
+    passEl.value = '';
+    modal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+  // Fallback if modal is unavailable.
+  const input = prompt('Admin lozinka:');
+  if (input === null) return;
   if (input !== getAdminPassword()) {
-    document.getElementById('adminLoginError').style.display = 'block';
+    alert('Pogresna lozinka.');
     return;
   }
   sessionStorage.setItem('calendar_admin_logged', 'true');
-  document.getElementById('adminLoginModal').classList.remove('active');
+  openAdminPanel();
+}
+
+function submitAdminLogin() {
+  const inputEl = document.getElementById('adminLoginPassword');
+  const errEl = document.getElementById('adminLoginError');
+  if (!inputEl || !errEl) {
+    openAdminEntry();
+    return;
+  }
+  const input = inputEl.value;
+  if (input !== getAdminPassword()) {
+    errEl.style.display = 'block';
+    return;
+  }
+  sessionStorage.setItem('calendar_admin_logged', 'true');
+  const modal = document.getElementById('adminLoginModal');
+  if (modal) modal.classList.remove('active');
   openAdminPanel();
 }
 
