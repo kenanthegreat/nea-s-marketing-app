@@ -308,9 +308,13 @@ let db = null;
 
 const DataStore = {
   async getEvents() {
-    if (USE_FIREBASE) {
-      const snap = await db.collection('events').orderBy('startDate').get();
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (USE_FIREBASE && db) {
+      try {
+        const snap = await db.collection('events').orderBy('startDate').get();
+        return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.error('Firestore getEvents error:', err);
+      }
     }
     return JSON.parse(localStorage.getItem('cal_events') || '[]');
   }
@@ -388,29 +392,41 @@ function fmt(y, m, d) {
 // INIT
 // ============================================================
 async function init() {
-  if (USE_FIREBASE) {
-    firebase.initializeApp(firebaseConfig);
-    db = firebase.firestore();
-  } else {
-    initDemoData();
-  }
-  
-  allEvents = await DataStore.getEvents();
-  filteredEvents = [...allEvents];
-  
+  // Render static UI immediately so page is never blank on first load.
   renderFilters();
   renderLegend();
   renderCalendars();
   setupRealtimeSync();
+  
+  try {
+    if (USE_FIREBASE) {
+      if (!firebase.apps || !firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+      }
+      db = firebase.firestore();
+    } else {
+      initDemoData();
+    }
 
-  if (USE_FIREBASE) {
-    startCloudSync();
-  } else {
-    // Safety poll in local mode
-    setInterval(async () => {
-      allEvents = await DataStore.getEvents();
-      applyFilter();
-    }, 60000);
+    allEvents = await DataStore.getEvents();
+    filteredEvents = [...allEvents];
+    renderCalendars();
+
+    if (USE_FIREBASE) {
+      startCloudSync();
+    } else {
+      // Safety poll in local mode
+      setInterval(async () => {
+        allEvents = await DataStore.getEvents();
+        applyFilter();
+      }, 60000);
+    }
+  } catch (err) {
+    console.error('Calendar init error:', err);
+    // Keep app usable even if cloud init fails.
+    allEvents = JSON.parse(localStorage.getItem('cal_events') || '[]');
+    filteredEvents = [...allEvents];
+    renderCalendars();
   }
 }
 
