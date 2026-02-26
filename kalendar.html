@@ -805,7 +805,8 @@ function renderMonth(year, month, position) {
   const isCenter = position === 'center';
   const totalCells = startDow + daysInMonth;
   const rows = Math.ceil(totalCells / 7);
-  const maxVisible = rows <= 4 ? 10 : (rows === 5 ? 7 : 4);
+  // Keep chips fully visible in each row height; overflow goes to +N popup.
+  const maxVisible = rows <= 4 ? 3 : 2;
   
   let cells = '';
   
