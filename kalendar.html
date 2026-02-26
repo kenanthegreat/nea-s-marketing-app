@@ -335,6 +335,24 @@ body {
   border:1px solid var(--border); border-radius:12px; background:#fff; padding:12px;
 }
 .admin-card h3 { font-size:0.92rem; margin-bottom:10px; }
+.admin-list-head {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  margin-bottom:10px;
+}
+.admin-list-head h3 { margin:0; }
+.admin-search {
+  width:240px;
+  max-width:100%;
+  border:2px solid var(--border);
+  border-radius:10px;
+  padding:8px 10px;
+  font-size:0.82rem;
+  font-family:inherit;
+}
+.admin-search:focus { outline:none; border-color:var(--today-bg); }
 .admin-field { margin-bottom:10px; }
 .admin-field label { display:block; font-size:0.78rem; color:var(--text2); margin-bottom:4px; }
 .admin-field input, .admin-field select, .admin-field textarea {
@@ -486,7 +504,10 @@ body {
         </div>
       </div>
       <div class="admin-card">
-        <h3>Svi dogadjaji</h3>
+        <div class="admin-list-head">
+          <h3>Svi dogadjaji</h3>
+          <input class="admin-search" id="adminSearchInput" type="text" placeholder="Pretraga (naziv, restoran, kategorija...)" oninput="setAdminSearchTerm(this.value)">
+        </div>
         <div class="admin-list" id="adminEventsList"></div>
       </div>
     </div>
@@ -590,6 +611,7 @@ let unsubEvents = null;
 const DEFAULT_ADMIN_PASS = 'admin123';
 let adminImageData = '';
 let dayEventsPopupEl = null;
+let adminSearchTerm = '';
 
 const MONTH_NAMES = ['Januar','Februar','Mart','April','Maj','Juni',
                      'Juli','August','Septembar','Oktobar','Novembar','Decembar'];
@@ -942,6 +964,8 @@ function submitAdminLogin() {
 }
 
 function openAdminPanel() {
+  const searchEl = document.getElementById('adminSearchInput');
+  if (searchEl) searchEl.value = adminSearchTerm;
   renderAdminEvents();
   document.getElementById('adminPanelModal').classList.add('active');
   document.body.style.overflow = 'hidden';
@@ -989,6 +1013,8 @@ async function saveAdminEvent() {
   }
 
   const id = document.getElementById('adminEventId').value || `evt_${Date.now()}`;
+  const existing = allEvents.find(e => e.id === id);
+  const nowIso = new Date().toISOString();
   const eventData = {
     id,
     title,
@@ -998,7 +1024,8 @@ async function saveAdminEvent() {
     endDate,
     description: document.getElementById('adminEventDesc').value.trim(),
     imageDataUrl: adminImageData || '',
-    updatedAt: new Date().toISOString()
+    createdAt: (existing && existing.createdAt) || (existing && existing.updatedAt) || nowIso,
+    updatedAt: nowIso
   };
 
   try {
@@ -1024,13 +1051,55 @@ async function deleteAdminEvent(eventId) {
   }
 }
 
+function setAdminSearchTerm(value) {
+  adminSearchTerm = (value || '').trim().toLowerCase();
+  renderAdminEvents();
+}
+
+function parseDateToMs(value) {
+  if (!value) return NaN;
+  const ms = Date.parse(value);
+  return Number.isNaN(ms) ? NaN : ms;
+}
+
+function getEventSortScore(ev) {
+  const updated = parseDateToMs(ev.updatedAt);
+  if (!Number.isNaN(updated)) return updated;
+  const created = parseDateToMs(ev.createdAt);
+  if (!Number.isNaN(created)) return created;
+  if (ev.id && /^evt_\d+$/.test(ev.id)) return Number(ev.id.slice(4));
+  const start = parseDateToMs(ev.startDate);
+  if (!Number.isNaN(start)) return start;
+  return 0;
+}
+
+function eventMatchesSearch(ev, term) {
+  if (!term) return true;
+  const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+  const rest = CONFIG.restaurants[ev.restaurant] || ev.restaurant || '';
+  const hay = [
+    ev.title,
+    ev.description,
+    ev.category,
+    cat && cat.label,
+    rest,
+    ev.startDate,
+    ev.endDate
+  ].join(' ').toLowerCase();
+  return hay.includes(term);
+}
+
 function renderAdminEvents() {
   const list = document.getElementById('adminEventsList');
   if (!list) return;
 
-  const sorted = [...allEvents].sort((a, b) => b.startDate.localeCompare(a.startDate));
+  const sorted = [...allEvents]
+    .filter((ev) => eventMatchesSearch(ev, adminSearchTerm))
+    .sort((a, b) => getEventSortScore(b) - getEventSortScore(a));
   if (!sorted.length) {
-    list.innerHTML = '<div class="admin-empty">Nema dogadjaja.</div>';
+    list.innerHTML = adminSearchTerm
+      ? '<div class="admin-empty">Nema rezultata za ovu pretragu.</div>'
+      : '<div class="admin-empty">Nema dogadjaja.</div>';
     return;
   }
 
