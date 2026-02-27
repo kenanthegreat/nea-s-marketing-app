@@ -124,7 +124,23 @@ body {
   visibility:hidden;
 }
 @media(max-width:980px) {
-  .nav-notice { display:none; }
+  .nav-bar {
+    flex-wrap:wrap;
+    justify-content:center;
+    column-gap:8px;
+    row-gap:6px;
+    padding:6px 8px 4px;
+  }
+  #navPrevBtn { order:1; }
+  #navTodayBtn { order:2; }
+  #navNextBtn { order:3; }
+  #navActiveNotice { order:4; }
+  #navNextNotice { order:5; }
+  .nav-notice {
+    width:min(100%, 560px);
+    flex:1 1 100%;
+  }
+  .nav-line { font-size:0.68rem; }
 }
 
 /* CALENDAR CONTAINER */
@@ -482,17 +498,17 @@ body {
 <div class="filters" id="filters"></div>
 
 <div class="nav-bar">
-  <button class="nav-btn" onclick="navigate(-1)">&#9664;</button>
+  <button class="nav-btn" id="navPrevBtn" onclick="navigate(-1)">&#9664;</button>
   <div class="nav-notice" id="navActiveNotice">
     <div class="nav-line empty">Aktivno: nema</div>
     <div class="nav-line ghost">&nbsp;</div>
   </div>
-  <button class="nav-today" onclick="goToday()">Danas</button>
+  <button class="nav-today" id="navTodayBtn" onclick="goToday()">Danas</button>
   <div class="nav-notice" id="navNextNotice">
     <div class="nav-line empty">Nadolazeci: nema</div>
     <div class="nav-line ghost">&nbsp;</div>
   </div>
-  <button class="nav-btn" onclick="navigate(1)">&#9654;</button>
+  <button class="nav-btn" id="navNextBtn" onclick="navigate(1)">&#9654;</button>
 </div>
 
 <div class="calendars" id="calendars"></div>
