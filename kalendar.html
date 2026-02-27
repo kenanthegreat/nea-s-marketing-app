@@ -137,10 +137,15 @@ body {
   #navActiveNotice { order:4; }
   #navNextNotice { order:5; }
   .nav-notice {
-    width:min(100%, 560px);
-    flex:1 1 100%;
+    width:auto;
+    max-width:none;
+    min-width:0;
+    flex:1 1 calc(50% - 6px);
   }
-  .nav-line { font-size:0.68rem; }
+  .nav-line {
+    font-size:0.63rem;
+    padding:3px 8px;
+  }
 }
 
 /* CALENDAR CONTAINER */
@@ -175,7 +180,7 @@ body {
   padding:2px 6px 1px; gap:3px;
 }
 .day-name {
-  text-align:center; font-size:0.62rem; font-weight:800;
+  text-align:center; font-size:0.58rem; font-weight:800;
   color:var(--text2); text-transform:uppercase; padding:4px;
 }
 .days-grid {
@@ -184,19 +189,19 @@ body {
   min-height:0; height:100%;
 }
 .day-cell {
-  min-height:0; height:auto; padding:4px; border-radius:8px;
+  min-height:0; height:auto; padding:3px; border-radius:8px;
   cursor:default; transition:background 0.15s; position:relative;
   overflow:hidden; border:1px solid #edf2f7;
   display:flex; flex-direction:column;
 }
-@media(max-width:1024px) { .day-cell { padding:4px; } }
+@media(max-width:1024px) { .day-cell { padding:2px; } }
 .day-cell:hover { background:#f8fafc; }
 .day-cell.empty { opacity:0.3; }
 .day-cell.other-month .day-number { color:#cbd5e1; }
 .day-number {
-  font-size:0.79rem; font-weight:800; display:inline-flex;
-  width:24px; height:24px; align-items:center; justify-content:center;
-  border-radius:50%; margin-bottom:3px;
+  font-size:0.72rem; font-weight:800; display:inline-flex;
+  width:20px; height:20px; align-items:center; justify-content:center;
+  border-radius:50%; margin-bottom:1px;
   flex:0 0 auto;
 }
 .day-cell.today .day-number {
@@ -210,27 +215,37 @@ body {
 
 /* EVENT PILLS */
 .event-pill {
-  font-size:0.68rem; font-weight:800; color:#fff;
-  padding:4px 6px; border-radius:6px; margin-bottom:3px;
+  font-size:0.63rem; font-weight:800; color:#fff;
+  padding:0 6px; border-radius:6px; margin-bottom:0;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;
-  line-height:1.15;
-  display:block; width:100%; max-width:100%;
-  min-height:20px;
+  line-height:1;
+  display:flex; align-items:center; width:100%; max-width:100%;
+  height:18px; min-height:18px;
 }
 .event-pill:hover { transform:scale(1.05); box-shadow:0 2px 8px rgba(0,0,0,0.2); z-index:10; position:relative; }
 .day-events {
-  flex:1 1 auto; min-height:0; overflow:hidden; padding-right:2px;
+  display:grid;
+  grid-template-rows:repeat(2, 18px);
+  gap:2px;
+  flex:0 0 auto;
+  min-height:38px;
+  overflow:hidden;
+  padding-right:1px;
 }
 .more-events {
-  font-size:0.7rem;
+  font-size:0.64rem;
   color:var(--today-bg);
   font-weight:800;
-  padding:2px 6px;
+  padding:0 6px;
   cursor:pointer;
   background:#eef2ff;
   border-radius:6px;
   border:1px solid #dbeafe;
+  height:18px;
+  min-height:18px;
+  display:flex;
+  align-items:center;
 }
 .more-events-popup {
   position:fixed;
@@ -270,18 +285,19 @@ body {
 .more-events:hover { text-decoration:underline; }
 @media(max-width:768px) {
   .event-pill {
-    min-height:24px;
-    font-size:0.72rem;
-    padding:5px 7px;
-    margin-bottom:4px;
+    height:18px;
+    min-height:18px;
+    font-size:0.62rem;
+    padding:0 5px;
   }
   .more-events {
     display:block;
     width:100%;
-    min-height:24px;
+    min-height:18px;
+    height:18px;
     text-align:center;
-    padding:5px 7px;
-    font-size:0.72rem;
+    padding:0 5px;
+    font-size:0.62rem;
   }
   .more-events-popup.mobile {
     width:calc(100vw - 24px);
@@ -1012,8 +1028,6 @@ function renderMonth(year, month, position) {
   const isCenter = position === 'center';
   const totalCells = startDow + daysInMonth;
   const rows = Math.ceil(totalCells / 7);
-  // Keep chips fully visible in each row height; overflow goes to +N popup.
-  const maxVisible = isCompactMobile() ? 1 : (rows <= 4 ? 3 : 2);
   
   let cells = '';
   
@@ -1022,12 +1036,12 @@ function renderMonth(year, month, position) {
     const d = prevMonthDays - i;
     const pm = month === 0 ? 11 : month - 1;
     const py = month === 0 ? year - 1 : year;
-    cells += renderDayCell(py, pm, d, false, today, maxVisible);
+    cells += renderDayCell(py, pm, d, false, today);
   }
   
   // Current month days
   for (let d = 1; d <= daysInMonth; d++) {
-    cells += renderDayCell(year, month, d, true, today, maxVisible);
+    cells += renderDayCell(year, month, d, true, today);
   }
   
   // Next month padding
@@ -1035,7 +1049,7 @@ function renderMonth(year, month, position) {
   const nm = month === 11 ? 0 : month + 1;
   const ny = month === 11 ? year + 1 : year;
   for (let d = 1; d <= remaining; d++) {
-    cells += renderDayCell(ny, nm, d, false, today, maxVisible);
+    cells += renderDayCell(ny, nm, d, false, today);
   }
   
   return `
@@ -1048,7 +1062,7 @@ function renderMonth(year, month, position) {
     </div>`;
 }
 
-function renderDayCell(year, month, day, isCurrentMonth, today, maxVisible = 4) {
+function renderDayCell(year, month, day, isCurrentMonth, today) {
   const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
   const isToday = day === today.getDate() && month === today.getMonth() && year === today.getFullYear();
   const dayEvents = getEventsForDate(dateStr);
@@ -1059,16 +1073,23 @@ function renderDayCell(year, month, day, isCurrentMonth, today, maxVisible = 4) 
     isToday ? 'today' : ''
   ].filter(Boolean).join(' ');
   
-  let eventsHtml = dayEvents.slice(0, maxVisible).map(ev => {
-    const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
-    return `<div class="event-pill" style="background:${cat.color}" 
-                 onclick="showEventDetail('${ev.id}')" title="${ev.title}">
-              ${cat.icon} ${ev.title}
-            </div>`;
-  }).join('');
-
-  if (dayEvents.length > maxVisible) {
-    eventsHtml += `<div class="more-events" onclick="showDayEventsPopup(event, '${dateStr}')">+${dayEvents.length - maxVisible} više</div>`;
+  let eventsHtml = '';
+  if (dayEvents.length <= 2) {
+    eventsHtml = dayEvents.map((ev) => {
+      const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+      return `<div class="event-pill" style="background:${cat.color}" 
+                   onclick="showEventDetail('${ev.id}')" title="${ev.title}">
+                ${cat.icon} ${ev.title}
+              </div>`;
+    }).join('');
+  } else {
+    const first = dayEvents[0];
+    const cat = CONFIG.categories[first.category] || CONFIG.categories.posebna;
+    eventsHtml = `<div class="event-pill" style="background:${cat.color}" 
+                      onclick="showEventDetail('${first.id}')" title="${first.title}">
+                   ${cat.icon} ${first.title}
+                 </div>
+                 <div class="more-events" onclick="showDayEventsPopup(event, '${dateStr}')">+${dayEvents.length - 1}</div>`;
   }
 
   return `<div class="${classes}">
@@ -1077,8 +1098,21 @@ function renderDayCell(year, month, day, isCurrentMonth, today, maxVisible = 4) 
   </div>`;
 }
 
+function getEventCreatedScore(ev) {
+  const created = parseDateToMs(ev.createdAt);
+  if (!Number.isNaN(created)) return created;
+  if (ev.id && /^evt_\d+$/.test(ev.id)) return Number(ev.id.slice(4));
+  const updated = parseDateToMs(ev.updatedAt);
+  if (!Number.isNaN(updated)) return updated;
+  const start = parseDateToMs(ev.startDate);
+  if (!Number.isNaN(start)) return start;
+  return 0;
+}
+
 function getEventsForDate(dateStr) {
-  return filteredEvents.filter(ev => dateStr >= ev.startDate && dateStr <= ev.endDate);
+  return filteredEvents
+    .filter(ev => dateStr >= ev.startDate && dateStr <= ev.endDate)
+    .sort((a, b) => getEventCreatedScore(a) - getEventCreatedScore(b));
 }
 
 // ============================================================
