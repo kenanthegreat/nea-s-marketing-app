@@ -88,32 +88,40 @@ body {
 }
 .nav-today:hover { background:var(--today-bg); color:#fff; }
 .nav-notice {
-  max-width:260px;
+  width:clamp(190px, 23vw, 320px);
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+}
+.nav-line {
   border:1px solid #dbeafe;
   background:#eef2ff;
   color:#1e3a8a;
   border-radius:999px;
   padding:4px 10px;
-  font-size:0.72rem;
+  font-size:0.71rem;
   font-weight:700;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.nav-notice.active {
+.nav-line.active {
   border-color:#bbf7d0;
   background:#ecfdf5;
   color:#166534;
 }
-.nav-notice.upcoming {
+.nav-line.upcoming {
   border-color:#c7d2fe;
   background:#eef2ff;
   color:#3730a3;
 }
-.nav-notice.empty {
+.nav-line.empty {
   border-color:#e2e8f0;
   background:#f8fafc;
   color:#64748b;
+}
+.nav-line.ghost {
+  visibility:hidden;
 }
 @media(max-width:980px) {
   .nav-notice { display:none; }
@@ -475,9 +483,15 @@ body {
 
 <div class="nav-bar">
   <button class="nav-btn" onclick="navigate(-1)">&#9664;</button>
-  <div class="nav-notice empty" id="navActiveNotice">Aktivno: nema</div>
+  <div class="nav-notice" id="navActiveNotice">
+    <div class="nav-line empty">Aktivno: nema</div>
+    <div class="nav-line ghost">&nbsp;</div>
+  </div>
   <button class="nav-today" onclick="goToday()">Danas</button>
-  <div class="nav-notice empty" id="navNextNotice">Nadolazeci: nema</div>
+  <div class="nav-notice" id="navNextNotice">
+    <div class="nav-line empty">Nadolazeci: nema</div>
+    <div class="nav-line ghost">&nbsp;</div>
+  </div>
   <button class="nav-btn" onclick="navigate(1)">&#9654;</button>
 </div>
 
@@ -872,6 +886,21 @@ function formatDaysUntil(daysUntil) {
   return `za ${daysUntil} dana`;
 }
 
+function renderNavNoticeLines(container, lines, tone, emptyFallback) {
+  if (!container) return;
+  const safeLines = (lines && lines.length ? lines : [emptyFallback]).slice(0, 2);
+  while (safeLines.length < 2) safeLines.push('');
+  container.innerHTML = '';
+  safeLines.forEach((text) => {
+    const row = document.createElement('div');
+    const hasText = !!text;
+    row.className = `nav-line ${hasText ? tone : 'ghost'}`;
+    if (hasText) row.textContent = text;
+    else row.innerHTML = '&nbsp;';
+    container.appendChild(row);
+  });
+}
+
 function renderNextEventNotice() {
   const activeEl = document.getElementById('navActiveNotice');
   const nextEl = document.getElementById('navNextNotice');
@@ -880,45 +909,42 @@ function renderNextEventNotice() {
   const today = getTodayLocalDate();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  if (!filteredEvents.length) {
-    activeEl.className = 'nav-notice empty';
-    activeEl.textContent = 'Aktivno: nema';
-    nextEl.className = 'nav-notice empty';
-    nextEl.textContent = 'Nadolazeci: nema';
-    return;
-  }
-
   const activeNow = filteredEvents
     .filter((ev) => ev.startDate <= todayStr && ev.endDate >= todayStr)
     .sort((a, b) => a.endDate.localeCompare(b.endDate));
 
   if (activeNow.length) {
-    const primary = activeNow[0];
-    const extraCount = activeNow.length - 1;
-    activeEl.className = 'nav-notice active';
-    activeEl.textContent = extraCount > 0
-      ? `Aktivno: ${primary.title} +${extraCount}`
-      : `Aktivno: ${primary.title}`;
+    const activeLines = activeNow.slice(0, 2).map((ev) => {
+      const cat = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+      return `Aktivno: ${cat.icon} ${ev.title}`;
+    });
+    if (activeNow.length > 2 && activeLines[1]) {
+      activeLines[1] = `${activeLines[1]} +${activeNow.length - 2}`;
+    }
+    renderNavNoticeLines(activeEl, activeLines, 'active', 'Aktivno: nema');
   } else {
-    activeEl.className = 'nav-notice empty';
-    activeEl.textContent = 'Aktivno: nema';
+    renderNavNoticeLines(activeEl, ['Aktivno: nema'], 'empty', 'Aktivno: nema');
   }
 
   const nextEvent = filteredEvents
     .filter((ev) => ev.startDate > todayStr)
-    .sort((a, b) => a.startDate.localeCompare(b.startDate))[0];
+    .sort((a, b) => a.startDate.localeCompare(b.startDate));
 
-  if (!nextEvent) {
-    nextEl.className = 'nav-notice empty';
-    nextEl.textContent = 'Nadolazeci: nema';
+  if (!nextEvent.length) {
+    renderNavNoticeLines(nextEl, ['Nadolazeci: nema'], 'empty', 'Nadolazeci: nema');
     return;
   }
 
-  const nextDate = dateStrToLocalDate(nextEvent.startDate);
-  const daysUntil = nextDate ? Math.round((nextDate - today) / 86400000) : 0;
-  const category = CONFIG.categories[nextEvent.category] || CONFIG.categories.posebna;
-  nextEl.className = 'nav-notice upcoming';
-  nextEl.textContent = `Nadolazeci ${formatDaysUntil(daysUntil)}: ${category.icon} ${nextEvent.title}`;
+  const nextLines = nextEvent.slice(0, 2).map((ev) => {
+    const nextDate = dateStrToLocalDate(ev.startDate);
+    const daysUntil = nextDate ? Math.round((nextDate - today) / 86400000) : 0;
+    const category = CONFIG.categories[ev.category] || CONFIG.categories.posebna;
+    return `Nadolazeci ${formatDaysUntil(daysUntil)}: ${category.icon} ${ev.title}`;
+  });
+  if (nextEvent.length > 2 && nextLines[1]) {
+    nextLines[1] = `${nextLines[1]} +${nextEvent.length - 2}`;
+  }
+  renderNavNoticeLines(nextEl, nextLines, 'upcoming', 'Nadolazeci: nema');
 }
 
 // ============================================================
