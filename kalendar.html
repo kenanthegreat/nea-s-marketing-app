@@ -213,6 +213,40 @@ body {
   text-overflow:ellipsis;
 }
 .more-events:hover { text-decoration:underline; }
+@media(max-width:768px) {
+  .event-pill {
+    min-height:24px;
+    font-size:0.72rem;
+    padding:5px 7px;
+    margin-bottom:4px;
+  }
+  .more-events {
+    display:block;
+    width:100%;
+    min-height:24px;
+    text-align:center;
+    padding:5px 7px;
+    font-size:0.72rem;
+  }
+  .more-events-popup.mobile {
+    width:calc(100vw - 24px);
+    max-width:none;
+    min-width:0;
+    max-height:78vh;
+    left:12px !important;
+    top:50% !important;
+    transform:translateY(-50%);
+  }
+  .more-events-popup.mobile .more-events-popup-list {
+    max-height:calc(78vh - 44px);
+  }
+  .more-events-popup-item {
+    min-height:36px;
+    display:flex;
+    align-items:center;
+    font-size:0.86rem;
+  }
+}
 
 /* LEGEND */
 .legend {
@@ -808,6 +842,10 @@ function goToday() {
   renderCalendars();
 }
 
+function isCompactMobile() {
+  return window.matchMedia('(max-width: 768px)').matches;
+}
+
 function renderCalendars() {
   hideDayEventsPopup();
   const container = document.getElementById('calendars');
@@ -829,7 +867,7 @@ function renderMonth(year, month, position) {
   const totalCells = startDow + daysInMonth;
   const rows = Math.ceil(totalCells / 7);
   // Keep chips fully visible in each row height; overflow goes to +N popup.
-  const maxVisible = rows <= 4 ? 3 : 2;
+  const maxVisible = isCompactMobile() ? 1 : (rows <= 4 ? 3 : 2);
   
   let cells = '';
   
@@ -1281,14 +1319,16 @@ function showDayEvents(dateStr) {
 }
 
 function showDayEventsPopup(e, dateStr) {
-  e.stopPropagation();
+  if (e && e.stopPropagation) e.stopPropagation();
   hideDayEventsPopup();
 
   const dayEvents = getEventsForDate(dateStr);
   if (!dayEvents.length) return;
 
-  const trigger = e.currentTarget;
-  const rect = trigger.getBoundingClientRect();
+  const trigger = (e && (e.currentTarget || e.target)) || null;
+  const rect = trigger
+    ? trigger.getBoundingClientRect()
+    : { left: window.innerWidth / 2, top: window.innerHeight / 2, bottom: window.innerHeight / 2 };
 
   const popup = document.createElement('div');
   popup.className = 'more-events-popup';
@@ -1313,6 +1353,13 @@ function showDayEventsPopup(e, dateStr) {
       showEventDetail(item.dataset.eventId);
     });
   });
+
+  if (isCompactMobile()) {
+    popup.classList.add('mobile');
+    popup.style.left = '12px';
+    popup.style.top = '50%';
+    return;
+  }
 
   const margin = 8;
   const popupRect = popup.getBoundingClientRect();
